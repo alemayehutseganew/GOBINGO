@@ -34,6 +34,9 @@ function validateEnv() {
     if (!process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN === 'your-telegram-bot-token') {
       errors.push('TELEGRAM_BOT_TOKEN must be configured in production');
     }
+    if (process.env.TELEGRAM_WEBHOOK_URL && !process.env.TELEGRAM_WEBHOOK_SECRET) {
+      errors.push('TELEGRAM_WEBHOOK_SECRET is required when TELEGRAM_WEBHOOK_URL is set');
+    }
     const telebirrEnv = process.env.TELEBIRR_ENV || 'sandbox';
     if (!['sandbox', 'production'].includes(telebirrEnv)) {
       errors.push('TELEBIRR_ENV must be sandbox or production');

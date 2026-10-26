@@ -37,6 +37,28 @@ app.use('/api/wallet', require('./routes/wallet'));
 app.use('/api/rooms', require('./routes/rooms'));
 app.use('/api/telebirr', require('./routes/telebirr'));
 
+// Telegram bot webhook endpoint (only registered when a real bot token is configured).
+try {
+  const { isBotConfigured, createBot } = require('./bot/telegramBot');
+  if (isBotConfigured()) {
+    const bot = createBot();
+    if (bot) {
+      app.post('/api/telegram/webhook', (req, res) => {
+        const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
+        if (secret && req.headers['x-telegram-bot-api-secret-token'] !== secret) {
+          return res.sendStatus(401);
+        }
+        bot.handleUpdate(req.body)
+          .then(() => res.sendStatus(200))
+          .catch(() => res.sendStatus(500));
+      });
+      app.set('telegramBot', bot);
+    }
+  }
+} catch (e) {
+  // Bot module unavailable or token not configured; skip.
+}
+
 // Error handler (no stack traces) - must be registered last
 app.use((err, req, res, next) => {
   console.error(err && err.message ? err.message : err);
