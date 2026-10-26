@@ -1,0 +1,38 @@
+export const strings = {
+  loading: 'በመጫን ላይ...',
+  lobby: 'ሎቢ',
+  wallet: 'የኪስ ቦርሳ',
+  play: 'ተጫወት',
+  level1: 'ደረጃ 1 - 10 ብር',
+  level2: 'ደረጃ 2 - 25 ብር',
+  level3: 'ደረጃ 3 - 50 ብር',
+  join: 'ተቀላቀል',
+  balance: 'ቀሪ ሒሳብ',
+  deposit: 'ገንዘብ አስገባ',
+  withdraw: 'ገንዘብ አውጣ',
+  amount: 'መጠን',
+  confirm: 'አረጋግጥ',
+  cancel: 'ሰርዝ',
+  startGame: 'ጨዋታ ጀምር',
+  claimBingo: 'ቢንጎ አወ ',
+  waiting: 'ተጫዋቾችን በመጠበቅ ላይ...',
+  numberDrawn: 'የወጣ ቁጥር',
+  youWon: 'አሸነፋ !',
+  invalidClaim: 'የተሳሳተ ው ',
+  insufficientBalance: 'በቂ ሒሳብ የለም',
+  depositSuccess: 'ገንዘብ በተሳካ ሁኔታ ገብቷል',
+  depositPending: 'ክፍያ በሂደት ላይ ነው',
+  error: 'ስህተት ተከስቷል',
+  players: 'ተጫዋቾች',
+  room: 'ክፍል',
+  back: 'ተመለስ',
+  free: 'ነጻ',
+  winnerPayout: 'የአሸናፊ ክፍያ',
+  platformFee: 'የመድረክ ክፍያ',
+  agentCommission: 'የወኪል ኮሚሽን',
+  totalPool: 'ጠቅላላ ገንዘብ',
+};
+
+export function t(key) { return strings[key] || key; }
+export default strings;
+
