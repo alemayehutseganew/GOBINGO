@@ -21,7 +21,7 @@ app.use(express.json({ limit: '1mb' }));
 const globalLimiter = rateLimit({ windowMs: 60 * 1000, max: isProduction ? 300 : 1000, standardHeaders: true, legacyHeaders: false });
 app.use(globalLimiter);
 
-app.get('/health', (req, res) => res.json({ ok: true, service: 'GOBINGO' }));
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/ready', async (req, res) => {
   try {
     const db = require('./db/knex');

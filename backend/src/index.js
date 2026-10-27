@@ -11,7 +11,7 @@ const server = http.createServer(app);
 const io = setupSocket(server);
 app.set('io', io);
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
 let telegramBotInstance = null;
 let startInProgress = false;
@@ -19,27 +19,35 @@ let startInProgress = false;
 async function start() {
   if (startInProgress) return;
   startInProgress = true;
+
+  // Bind the port first so Render (and local checks) see an open port
+  // immediately, regardless of how long Redis/Telegram/DB init takes.
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Listening on ${PORT}`);
+  });
+
   try {
     await setupSocketRedis(io);
   } catch (e) {
     console.warn('[REDIS] Adapter setup failed, using in-memory:', e.message);
   }
 
-  // Telegram bot: only launch when configured; never auto-launch in tests (index.js not loaded by tests).
+  // Telegram bot: launch without blocking startup. Never auto-launch in tests
+  // (index.js is not loaded by the test suite).
   try {
     const { isBotConfigured, createBot, launchBot } = require('./bot/telegramBot');
     if (isBotConfigured()) {
       const bot = createBot();
       if (bot && !telegramBotInstance) {
-        try {
-          await launchBot(bot);
-          telegramBotInstance = bot;
-          app.set('telegramBot', bot);
-          console.log('[TELEGRAM] Bot launched');
-        } catch (e) {
-          // Log safely: never include token or full config.
-          console.warn('[TELEGRAM] Bot launch failed:', e && e.message ? e.message : 'unknown error');
-        }
+        launchBot(bot)
+          .then(() => {
+            telegramBotInstance = bot;
+            app.set('telegramBot', bot);
+            console.log('[TELEGRAM] Bot launched');
+          })
+          .catch((e) => {
+            console.warn('[TELEGRAM] Bot launch failed:', e && e.message ? e.message : 'unknown error');
+          });
       }
     } else {
       console.log('[TELEGRAM] Bot not configured (TELEGRAM_BOT_TOKEN missing/placeholder); skipping.');
@@ -47,10 +55,6 @@ async function start() {
   } catch (e) {
     console.warn('[TELEGRAM] Bot init error:', e && e.message ? e.message : 'unknown error');
   }
-
-  server.listen(PORT, "0.0.0.0", () => {
-    console.log(`GOBINGO backend listening on ${PORT}`);
-  });
 }
 
 function shutdown(signal) {
