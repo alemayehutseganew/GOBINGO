@@ -15,7 +15,11 @@ const TelegramAuth = {
     }
   },
   initData() {
-    try { return WebApp.initData || ''; } catch (e) { return ''; }
+    try {
+      return WebApp.initData || window.Telegram?.WebApp?.initData || '';
+    } catch (e) {
+      return window.Telegram?.WebApp?.initData || '';
+    }
   },
   async login() {
     const initData = this.initData();

@@ -1,35 +1,104 @@
 const crypto = require('crypto');
 
-function validateTelegramInitData(initData, botToken) {
-  if (!initData) return null;
-  const params = new URLSearchParams(initData);
-  const hash = params.get('hash');
-  if (!hash) return null;
-  params.delete('hash');
-  const dataCheckString = Array.from(params.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([k, v]) => `${k}=${v}`)
-    .join('\n');
-  const secretKey = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest();
-  const computedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
-  if (computedHash !== hash) return null;
-  // auth_date freshness (optional, 24h)
-  const authDate = Number(params.get('auth_date') || 0);
-  const now = Math.floor(Date.now() / 1000);
-  if (authDate && now - authDate > 86400) return null;
-  const userStr = params.get('user');
-  if (!userStr) return null;
+const MAX_AUTH_AGE_SECONDS = 24 * 60 * 60;
+
+function parseInitData(initData) {
   try {
-    return JSON.parse(userStr);
+    return new URLSearchParams(initData);
   } catch (e) {
     return null;
   }
 }
 
+function validateTelegramInitData(initData, botToken) {
+  const token = (botToken || '').trim();
+  if (!initData) {
+    console.warn('[TELEGRAM_AUTH] validation failed: missing');
+    return { ok: false, reason: 'missing', user: null };
+  }
+  if (!token) {
+    console.warn('[TELEGRAM_AUTH] validation failed: bot_token_missing');
+    return { ok: false, reason: 'bot_token_missing', user: null };
+  }
+
+  const params = parseInitData(initData);
+  if (!params) {
+    return { ok: false, reason: 'malformed', user: null };
+  }
+
+  const hash = params.get('hash');
+  if (!hash) {
+    return { ok: false, reason: 'malformed', user: null };
+  }
+
+  params.delete('hash');
+  const dataCheckString = Array.from(params.entries())
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([key, value]) => `${key}=${value}`)
+    .join('\n');
+
+  const secretKey = crypto.createHmac('sha256', 'WebAppData').update(token).digest();
+  const computedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+
+  if (hash.length !== computedHash.length) {
+    console.warn('[TELEGRAM_AUTH] validation failed: signature');
+    return { ok: false, reason: 'signature', user: null };
+  }
+
+  let signatureValid = false;
+  try {
+    signatureValid = crypto.timingSafeEqual(
+      Buffer.from(computedHash, 'hex'),
+      Buffer.from(hash, 'hex')
+    );
+  } catch (e) {
+    signatureValid = false;
+  }
+  if (!signatureValid) {
+    console.warn('[TELEGRAM_AUTH] validation failed: signature');
+    return { ok: false, reason: 'signature', user: null };
+  }
+
+  const authDate = Number(params.get('auth_date') || 0);
+  if (!Number.isFinite(authDate) || authDate <= 0) {
+    console.warn('[TELEGRAM_AUTH] validation failed: malformed');
+    return { ok: false, reason: 'malformed', user: null };
+  }
+  const now = Math.floor(Date.now() / 1000);
+  if (authDate - now > 60) {
+    console.warn('[TELEGRAM_AUTH] validation failed: expired');
+    return { ok: false, reason: 'expired', user: null };
+  }
+  if (now - authDate > MAX_AUTH_AGE_SECONDS) {
+    console.warn('[TELEGRAM_AUTH] validation failed: expired');
+    return { ok: false, reason: 'expired', user: null };
+  }
+
+  const userStr = params.get('user');
+  if (!userStr) {
+    console.warn('[TELEGRAM_AUTH] validation failed: malformed');
+    return { ok: false, reason: 'malformed', user: null };
+  }
+  let user;
+  try {
+    user = JSON.parse(userStr);
+  } catch (e) {
+    console.warn('[TELEGRAM_AUTH] validation failed: malformed');
+    return { ok: false, reason: 'malformed', user: null };
+  }
+  if (!user || user.id === undefined || user.id === null) {
+    console.warn('[TELEGRAM_AUTH] validation failed: malformed');
+    return { ok: false, reason: 'malformed', user: null };
+  }
+
+  return { ok: true, reason: null, user };
+}
+
 function telegramAuthMiddleware(req, res, next) {
   const initData = req.headers['x-telegram-init-data'] || req.body?.initData || req.query?.initData;
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const botToken = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
   const isProduction = process.env.NODE_ENV === 'production';
+
   // Dev bypass is never allowed in production
   if (!isProduction && (!botToken || botToken === 'your-telegram-bot-token')) {
     const devUser = req.headers['x-dev-user'];
@@ -43,8 +112,8 @@ function telegramAuthMiddleware(req, res, next) {
       } catch (e) {}
     }
     if (initData) {
-      const params = new URLSearchParams(initData);
-      const u = params.get('user');
+      const params = parseInitData(initData);
+      const u = params ? params.get('user') : null;
       if (u) {
         try {
           const parsed = JSON.parse(u);
@@ -57,9 +126,20 @@ function telegramAuthMiddleware(req, res, next) {
     }
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  const user = validateTelegramInitData(initData, botToken);
-  if (!user || user.id === undefined || user.id === null) return res.status(401).json({ error: 'Invalid initData' });
-  req.tgUser = user;
+
+  const result = validateTelegramInitData(initData, botToken);
+  if (!result.ok) {
+    const messages = {
+      missing: 'Missing Telegram initData',
+      malformed: 'Malformed Telegram initData',
+      expired: 'Expired Telegram initData',
+      signature: 'Invalid Telegram signature',
+      bot_token_missing: 'Telegram authentication is not configured',
+    };
+    return res.status(401).json({ error: messages[result.reason] || 'Invalid initData' });
+  }
+
+  req.tgUser = result.user;
   next();
 }
 

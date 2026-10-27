@@ -9,3 +9,4 @@ coverage/
 *.pem
 *.crt
 pgdata/
+backend/scripts/

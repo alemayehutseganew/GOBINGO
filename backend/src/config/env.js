@@ -31,7 +31,8 @@ function validateEnv() {
     else if (PLACEHOLDER_SECRETS.has(jwtSecret) || jwtSecret.length < 32) {
       errors.push('JWT_SECRET must not use a development placeholder or be shorter than 32 characters in production');
     }
-    if (!process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN === 'your-telegram-bot-token') {
+    const telegramToken = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
+    if (!telegramToken || telegramToken === 'your-telegram-bot-token') {
       errors.push('TELEGRAM_BOT_TOKEN must be configured in production');
     }
     if (process.env.TELEGRAM_WEBHOOK_URL && !process.env.TELEGRAM_WEBHOOK_SECRET) {
