@@ -6,6 +6,7 @@ const { setupSocket } = require('./socket/gameHandler');
 const { setupSocketRedis } = require('./sockets/redisAdapter');
 
 const app = require('./app');
+const db = require('./db/knex');
 
 const server = http.createServer(app);
 const io = setupSocket(server);
@@ -16,6 +17,17 @@ const PORT = process.env.PORT || 3000;
 let telegramBotInstance = null;
 let startInProgress = false;
 
+async function checkDatabaseReadiness() {
+  try {
+    const hasUsers = await db.schema.hasTable('users');
+    if (!hasUsers) {
+      console.warn('[DB] Required tables missing: run `npm run migrate` (see deploy build command)');
+    }
+  } catch (err) {
+    console.warn('[DB] Database readiness check failed:', err && err.message ? err.message : 'unknown error');
+  }
+}
+
 async function start() {
   if (startInProgress) return;
   startInProgress = true;
@@ -25,6 +37,9 @@ async function start() {
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`Listening on ${PORT}`);
   });
+
+  // Non-blocking database readiness check: never awaits startup.
+  checkDatabaseReadiness().catch(() => {});
 
   try {
     await setupSocketRedis(io);

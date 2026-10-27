@@ -1,0 +1,7 @@
+Never run git commit, push, reset, rebase, or amend. Show diffs and wait.
+Never run npm install/update/audit fix. Use npm ci only. Never edit package-lock.json or dependencies.
+Never kill processes by image name; only by PID of a process you started.
+Never read, print, or write real secrets or .env files. Use placeholders.
+Never run migrations or queries against production databases.
+Work in small steps, state the plan first, and report executed vs skipped.
+This project requires Node 22.x. If the local version differs, say so and skip dependency-dependent checks.

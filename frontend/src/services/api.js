@@ -29,7 +29,9 @@ async function request(path, opts = {}) {
   clearTimeout(timeout);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || res.statusText);
+    const error = new Error(err.error || res.statusText);
+    error.status = res.status;
+    throw error;
   }
   return res.json();
 }

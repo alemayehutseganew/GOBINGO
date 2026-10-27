@@ -1,6 +1,11 @@
+const { assertSafeTestDatabase } = require('./testDbSafety');
+
+assertSafeTestDatabase();
+
 const db = require('../src/db/knex');
 
 async function cleanDb() {
+  assertSafeTestDatabase();
   await db('financial_ledger').del();
   await db('room_participants').del();
   await db('game_rooms').del();

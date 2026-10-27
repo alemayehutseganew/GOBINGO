@@ -17,9 +17,33 @@ function getPaymentProvider() {
   return process.env.NODE_ENV === 'production' ? 'telebirr' : 'mock';
 }
 
+function isDemoMode() {
+  return String(process.env.DEMO_MODE || '').trim().toLowerCase() === 'true';
+}
+
+function getDemoInitialBalance() {
+  const raw = process.env.DEMO_INITIAL_BALANCE;
+  if (raw === undefined || String(raw).trim() === '') return 100;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0 || value > 999999999999.99) {
+    throw new Error('DEMO_INITIAL_BALANCE must be a non-negative number no greater than 999999999999.99');
+  }
+  return value;
+}
+
 function validateEnv() {
   const env = process.env.NODE_ENV || 'development';
   const errors = [];
+
+  if (process.env.DEMO_MODE !== undefined && !['true', 'false', ''].includes(String(process.env.DEMO_MODE).trim().toLowerCase())) {
+    errors.push('DEMO_MODE must be true or false');
+  }
+
+  try {
+    getDemoInitialBalance();
+  } catch (e) {
+    errors.push(e.message);
+  }
 
   if (!process.env.DATABASE_URL) {
     errors.push('DATABASE_URL is required');
@@ -69,4 +93,4 @@ function validateEnv() {
   }
 }
 
-module.exports = { validateEnv, getPaymentProvider };
+module.exports = { validateEnv, getPaymentProvider, isDemoMode, getDemoInitialBalance };

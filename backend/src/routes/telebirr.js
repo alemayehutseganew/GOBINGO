@@ -7,12 +7,14 @@ const telebirr = require('../services/telebirrService');
 const MockTelebirrService = require('../services/mockTelebirrService');
 const mockTelebirr = new MockTelebirrService();
 const { isMockProviderEnabled, assertMockProviderAllowed, confirmMockDeposit } = require('../services/mockPaymentService');
-const { getPaymentProvider } = require('../config/env');
+const { getPaymentProvider, isDemoMode } = require('../config/env');
 
 const limiter = rateLimit({ windowMs: 60 * 1000, max: process.env.NODE_ENV === 'test' ? 10000 : 20, standardHeaders: true, legacyHeaders: false });
 router.use(limiter);
 
 function mockOnly(req, res, next) {
+  if (isDemoMode()) return res.status(403).json({ error: 'Payment operations are disabled in Demo Mode' });
+
   try {
     assertMockProviderAllowed();
     return next();
@@ -23,6 +25,8 @@ function mockOnly(req, res, next) {
 
 // Real Telebirr webhook. Mock callbacks are intentionally not accepted here.
 router.post('/webhook', async (req, res) => {
+  if (isDemoMode()) return res.status(403).json({ error: 'Payment operations are disabled in Demo Mode' });
+
   if (isMockProviderEnabled()) {
     return res.status(404).json({ error: 'Real Telebirr webhook is disabled in mock mode' });
   }
@@ -68,6 +72,8 @@ router.post('/webhook', async (req, res) => {
 // Initiate a deposit using the configured provider.
 router.post('/deposit', telegramAuthMiddleware, async (req, res) => {
   try {
+    if (isDemoMode()) return res.status(403).json({ error: 'Payment operations are disabled in Demo Mode' });
+
     const amount = Number(req.body?.amount);
     if (!amount || amount <= 0) return res.status(400).json({ error: 'Invalid amount' });
     const user = await db('users').where({ telegram_id: req.tgUser.id }).first();
@@ -108,6 +114,8 @@ router.post('/deposit', telegramAuthMiddleware, async (req, res) => {
 
 // Mock checkout page. Clearly marked as test-only.
 router.get('/mock/checkout', mockOnly, async (req, res) => {
+  if (isDemoMode()) return res.status(403).json({ error: 'Payment operations are disabled in Demo Mode' });
+
   const { outTradeNo, amount, userId: queryUserId, userid } = req.query;
   const internalUserId = queryUserId || userid;
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -256,6 +264,8 @@ router.get('/mock/checkout', mockOnly, async (req, res) => {
 
 // Sandbox alias retained for compatibility.
 router.get('/sandbox-checkout', mockOnly, (req, res) => {
+  if (isDemoMode()) return res.status(403).json({ error: 'Payment operations are disabled in Demo Mode' });
+
   const qs = new URLSearchParams(req.query).toString();
   res.redirect(`/api/telebirr/mock/checkout?${qs}`);
 });
@@ -263,6 +273,8 @@ router.get('/sandbox-checkout', mockOnly, (req, res) => {
 // Authenticated mock confirmation endpoint.
 router.post('/mock/confirm', telegramAuthMiddleware, mockOnly, async (req, res) => {
   try {
+    if (isDemoMode()) return res.status(403).json({ error: 'Payment operations are disabled in Demo Mode' });
+
     const { outTradeNo, outcome = 'success', amount = null, delayMs = 0 } = req.body || {};
     if (!outTradeNo) return res.status(400).json({ error: 'outTradeNo is required' });
     const result = await confirmMockDeposit(db, {

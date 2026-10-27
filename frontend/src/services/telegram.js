@@ -23,8 +23,17 @@ const TelegramAuth = {
   },
   async login() {
     const initData = this.initData();
-    const data = await api.login(initData, null);
-    return data.user;
+    try {
+      const data = await api.login(initData, null);
+      return data.user;
+    } catch (e) {
+      const status = e?.status;
+      const message = e?.message || '';
+      if (status === undefined || status >= 500 || /timed out/i.test(message)) {
+        throw new Error('Server temporarily unavailable, please try again');
+      }
+      throw new Error('Login failed');
+    }
   },
 };
 

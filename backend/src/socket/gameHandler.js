@@ -2,11 +2,14 @@ const { Server } = require('socket.io');
 const db = require('../db/knex');
 const { validateTelegramInitData } = require('../middleware/telegramAuth');
 const { validateClaim } = require('../utils/claimValidator');
+const { isDemoMode } = require('../config/env');
+
 const { processRoomPayout } = require('../services/payoutService');
 
 const activeGames = new Map();
 
 function parseUser(socket) {
+
   const initData = socket.handshake.auth?.initData || socket.handshake.query?.initData;
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   const isProduction = process.env.NODE_ENV === 'production';
@@ -72,9 +75,10 @@ function setupSocket(server) {
         if (!user) { socket.emit('error', { message: 'User not found' }); return; }
         const participant = await db('room_participants').where({ room_id: roomId, user_id: user.id }).first();
         if (!participant) { socket.emit('error', { message: 'Not a participant' }); return; }
+        const room = await db('game_rooms').where({ id: roomId }).first();
+        if (!room || Boolean(room.is_demo) !== isDemoMode()) { socket.emit('error', { message: 'Room mode mismatch' }); return; }
         currentRoom = roomId;
         socket.join(roomId);
-        const room = await db('game_rooms').where({ id: roomId }).first();
         const participants = await db('room_participants').where({ room_id: roomId });
         socket.emit('room_state', { room, card: participant.card, drawn: room.drawn_numbers || [], participants: participants.map((p) => ({ user_id: p.user_id })) });
         io.to(roomId).emit('player_joined', { userId: user.id, count: participants.length });
@@ -83,8 +87,13 @@ function setupSocket(server) {
 
     socket.on('start_game', async ({ roomId }) => {
       try {
+        const user = await getUserByTelegramId(socket.tgUser.id);
+        if (!user) { socket.emit('error', { message: 'User not found' }); return; }
         const room = await db('game_rooms').where({ id: roomId }).first();
-        if (!room || room.status !== 'WAITING') { socket.emit('error', { message: 'Room not available' }); return; }
+        if (!room || Boolean(room.is_demo) !== isDemoMode()) { socket.emit('error', { message: 'Room mode mismatch' }); return; }
+        const participant = await db('room_participants').where({ room_id: roomId, user_id: user.id }).first();
+        if (!participant) { socket.emit('error', { message: 'Not a participant' }); return; }
+        if (room.status !== 'WAITING') { socket.emit('error', { message: 'Room not available' }); return; }
         const participants = await db('room_participants').where({ room_id: roomId });
         if (participants.length < 1) { socket.emit('error', { message: 'Need players' }); return; }
         await db('game_rooms').where({ id: roomId }).update({ status: 'RUNNING', started_at: new Date(), drawn_numbers: [] });
@@ -120,6 +129,7 @@ function setupSocket(server) {
         const participant = await db('room_participants').where({ room_id: roomId, user_id: user.id }).first();
         if (!participant) { socket.emit('claim_result', { valid: false }); return; }
         const room = await db('game_rooms').where({ id: roomId }).first();
+        if (!room || Boolean(room.is_demo) !== isDemoMode()) { socket.emit('claim_result', { valid: false, reason: 'Room mode mismatch' }); return; }
         const drawnNumbers = room.drawn_numbers || game.drawn;
         const result = validateClaim(participant.card, drawnNumbers);
         if (!result.valid) { socket.emit('claim_result', { valid: false, patterns: result.patterns }); return; }

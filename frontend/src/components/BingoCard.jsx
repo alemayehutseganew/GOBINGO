@@ -1,18 +1,20 @@
 export default function BingoCard({ card, drawn, onCellClick }) {
-  const isDaubed = (val) => val === 0 || drawn.includes(val);
+  const isFree = (val) => val === 0;
+  const isDrawn = (val) => !isFree(val) && Array.isArray(drawn) && drawn.includes(val);
   return (
-    <div className="grid grid-cols-5 gap-1 bg-slate-700 p-2 rounded-lg">
+    <div className="grid grid-cols-5 gap-1 rounded-lg bg-slate-700 p-2" role="grid" aria-label="Bingo card">
       {card.flat().map((v, i) => {
-        const daubed = isDaubed(v);
+        const free = isFree(v);
+        const drawnCell = isDrawn(v);
         return (
           <button
             key={i}
             onClick={() => onCellClick && onCellClick(v)}
+            aria-label={free ? 'Free space' : `Number ${v}${drawnCell ? ', drawn' : ''}`}
             className={`aspect-square flex items-center justify-center rounded text-sm font-bold transition
-              ${daubed ? 'bg-amber-500 text-slate-900' : 'bg-slate-600 text-slate-100'}
-              ${v === 0 ? 'bg-emerald-500' : ''}`}
+              ${free ? 'bg-emerald-500 text-slate-900' : drawnCell ? 'bg-amber-500 text-slate-900' : 'bg-slate-600 text-slate-100'}`}
           >
-            {v === 0 ? 'FREE' : v}
+            {free ? 'FREE' : v}
           </button>
         );
       })}

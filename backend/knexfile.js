@@ -1,6 +1,9 @@
 require('dotenv').config();
 
-const databaseUrl = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/gobingo';
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL is required');
+}
 const useSsl = process.env.DB_SSL === 'true' || process.env.NODE_ENV === 'production';
 
 module.exports = {

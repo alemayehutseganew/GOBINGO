@@ -1,4 +1,4 @@
-const { getPaymentProvider } = require('../config/env');
+const { getPaymentProvider, isDemoMode } = require('../config/env');
 
 function isMockProviderEnabled() {
   return getPaymentProvider() === 'mock';
@@ -12,6 +12,8 @@ function assertMockProviderAllowed() {
   if (!isMockProviderEnabled()) {
     throw new Error('Mock payment provider is not enabled');
   }
+  if (isDemoMode()) throw new Error('Mock payments are not available in Demo Mode');
+
 }
 
 const ALLOWED_OUTCOMES = new Set(['success', 'failed', 'cancelled', 'pending']);

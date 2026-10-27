@@ -1,53 +1,165 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../services/api.js';
 import { t } from '../i18n/am.js';
 
-export default function Wallet({ user }) {
+function formatAmount(value) {
+  const n = Number(value);
+  if (Number.isNaN(n)) return '0.00';
+  return n.toFixed(2);
+}
+
+function ledgerLabel(row, isDemo) {
+  const labels = {
+    DEMO_CREDIT_GRANT: 'Demo credit',
+    DEMO_ENTRY_FEE: 'Virtual entry fee',
+    DEMO_WINNING_PAYOUT: 'Virtual winnings',
+    DEMO_AGENT_COMMISSION: 'Virtual agent commission',
+    ENTRY_FEE: 'Entry fee',
+    WINNING_PAYOUT: 'Winnings',
+    AGENT_COMMISSION: 'Agent commission',
+    DEPOSIT: 'Deposit',
+  };
+  return labels[row.type] || row.type;
+}
+
+export default function Wallet({ user, isDemo }) {
+  const [balance, setBalance] = useState(null);
+  const [balanceLoading, setBalanceLoading] = useState(true);
+  const [balanceError, setBalanceError] = useState('');
+  const [ledger, setLedger] = useState([]);
+  const [ledgerLoading, setLedgerLoading] = useState(true);
+  const [ledgerError, setLedgerError] = useState('');
   const [amount, setAmount] = useState('');
-  const [balance, setBalance] = useState(Number(user.wallet_balance));
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { refresh(); }, []);
+  const mountedRef = useRef(true);
 
   const refresh = async () => {
-    try { const d = await api.balance(); setBalance(d.balance); } catch (e) {}
+    setBalanceLoading(true);
+    setBalanceError('');
+    setLedgerLoading(true);
+    setLedgerError('');
+    try {
+      const d = await api.balance();
+      if (!mountedRef.current) return;
+      setBalance(Number(d.balance));
+    } catch (e) {
+      if (!mountedRef.current) return;
+      setBalanceError(e?.message || t('error'));
+    } finally {
+      if (mountedRef.current) setBalanceLoading(false);
+    }
+    try {
+      const d = await api.ledger();
+      if (!mountedRef.current) return;
+      setLedger(Array.isArray(d.ledger) ? d.ledger : []);
+    } catch (e) {
+      if (!mountedRef.current) return;
+      setLedgerError(e?.message || t('error'));
+    } finally {
+      if (mountedRef.current) setLedgerLoading(false);
+    }
   };
 
+  useEffect(() => {
+    mountedRef.current = true;
+    refresh();
+    return () => { mountedRef.current = false; };
+  }, []);
+
   const deposit = async () => {
+    if (isDemo) return;
     const a = Number(amount);
-    if (!a || a <= 0) { setMsg(t('error')); return; }
+    if (!a || a <= 0) {
+      setMsg(t('error'));
+      return;
+    }
     setLoading(true);
     setMsg('');
     try {
       const res = await api.telebirrDeposit(a, null);
-      if (res?.data?.toUrl) {
+      const checkoutUrl = res?.data?.toUrl || res?.preOrder?.data?.toUrl || res?.preOrder?.toUrl;
+      if (typeof checkoutUrl === 'string' && /^https?:\/\//i.test(checkoutUrl)) {
         setMsg(t('depositPending'));
-        window.location.href = res.data.toUrl;
+        window.location.assign(checkoutUrl);
       } else {
-        setMsg(t('depositSuccess'));
-        await refresh();
+        setMsg('Deposit initialized, but no checkout URL was returned.');
       }
     } catch (e) {
-      setMsg(e.message || t('error'));
-    } finally { setLoading(false); }
+      setMsg(e?.message || t('error'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="max-w-md mx-auto bg-slate-800 rounded p-4">
-      <div className="text-lg mb-3">{t('balance')}: <span className="text-amber-400 font-bold">{balance} ብር</span></div>
-      <div className="mb-2">{t('deposit')}</div>
-      <input
-        type="number"
-        value={amount}
-        onChange={(e) => setAmount(e.target.value)}
-        placeholder={t('amount')}
-        className="w-full p-2 rounded bg-slate-700 mb-3"
-      />
-      <button onClick={deposit} disabled={loading} className="w-full bg-amber-500 text-slate-900 py-2 rounded font-bold">
-        {loading ? '...' : t('confirm')}
-      </button>
-      {msg && <div className="mt-3 text-center text-amber-300">{msg}</div>}
+    <div className="mx-auto max-w-md space-y-4">
+      <div className="rounded bg-slate-800 p-4">
+        <div className="mb-1 text-sm text-slate-400">
+          {isDemo ? 'Virtual balance' : t('balance')}
+        </div>
+        <div className="text-lg font-bold text-amber-400">
+          {balanceLoading ? '...' : `${formatAmount(balance)} ${isDemo ? 'virtual ETB' : 'ብር'}`}
+        </div>
+        {balanceError && (
+          <button onClick={refresh} className="mt-2 text-xs text-red-300">
+            {balanceError} — retry
+          </button>
+        )}
+        {isDemo && (
+          <p className="mt-3 text-xs text-slate-400">
+            Virtual balances have no cash value and cannot be withdrawn.
+          </p>
+        )}
+      </div>
+
+      {!isDemo && (
+        <div className="rounded bg-slate-800 p-4">
+          <div className="mb-2">{t('deposit')}</div>
+          <input
+            type="number"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder={t('amount')}
+            className="mb-3 w-full rounded bg-slate-700 p-2"
+          />
+          <button
+            onClick={deposit}
+            disabled={loading}
+            className="w-full rounded bg-amber-500 py-2 font-bold text-slate-900 disabled:opacity-60"
+          >
+            {loading ? '...' : t('confirm')}
+          </button>
+          {msg && <div className="mt-3 text-center text-amber-300">{msg}</div>}
+        </div>
+      )}
+
+      <div className="rounded bg-slate-800 p-4">
+        <div className="mb-3 font-bold">{isDemo ? 'Virtual transaction history' : 'Transaction history'}</div>
+        {ledgerLoading && <div className="text-sm text-slate-400">Loading...</div>}
+        {ledgerError && (
+          <button onClick={refresh} className="text-xs text-red-300">
+            {ledgerError} — retry
+          </button>
+        )}
+        {!ledgerLoading && !ledgerError && ledger.length === 0 && (
+          <div className="text-sm text-slate-400">No transactions yet.</div>
+        )}
+        <div className="space-y-2">
+          {ledger.map((row, index) => (
+            <div key={row.id || index} className="flex items-center justify-between rounded bg-slate-700/60 px-3 py-2 text-sm">
+              <div>
+                <div className="font-medium text-slate-100">{ledgerLabel(row, isDemo)}</div>
+                <div className="text-xs text-slate-400">{row.created_at ? new Date(row.created_at).toLocaleString() : ''}</div>
+              </div>
+              <div className={Number(row.amount) >= 0 ? 'text-emerald-400' : 'text-red-300'}>
+                {Number(row.amount) >= 0 ? '+' : ''}{formatAmount(row.amount)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const db = require('../db/knex');
 const { telegramAuthMiddleware } = require('../middleware/telegramAuth');
 const { generateCard } = require('../utils/bingoCard');
-const store = require('../services/redisStore');
+const { isDemoMode } = require('../config/env');
 
 const limiter = rateLimit({ windowMs: 60 * 1000, max: process.env.NODE_ENV === 'test' ? 10000 : 40, standardHeaders: true, legacyHeaders: false });
 router.use(limiter);
@@ -15,7 +15,7 @@ const MAX_PLAYERS = 10;
 
 router.get('/', async (req, res) => {
   try {
-    const rooms = await db('game_rooms').where({ status: 'WAITING' }).orderBy('created_at', 'desc').limit(50);
+    const rooms = await db('game_rooms').where({ status: 'WAITING', is_demo: isDemoMode() }).orderBy('created_at', 'desc').limit(50);
     res.json({ rooms });
   } catch (err) {
     res.status(500).json({ error: 'Failed' });
@@ -27,21 +27,23 @@ router.post('/join', telegramAuthMiddleware, async (req, res) => {
     const level = Number(req.body.level);
     if (![1, 2, 3].includes(level)) return res.status(400).json({ error: 'Invalid level' });
     const entryFee = ENTRY_FEES[level];
+    const demoMode = isDemoMode();
+    const balanceField = demoMode ? 'demo_wallet_balance' : 'wallet_balance';
     const user = await db('users').where({ telegram_id: req.tgUser.id }).first();
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     try {
       const result = await db.transaction(async (trx) => {
         const lockedUser = await trx('users').where({ id: user.id }).forUpdate().first();
-        if (Number(lockedUser.wallet_balance) < entryFee) throw new Error('Insufficient balance');
+        if (Number(lockedUser[balanceField]) < entryFee) throw new Error('Insufficient balance');
 
-        let room = await trx('game_rooms').where({ level, status: 'WAITING' }).first();
+        let room = await trx('game_rooms').where({ level, status: 'WAITING', is_demo: demoMode }).first();
         if (room) {
           const countRow = await trx('room_participants').where({ room_id: room.id }).count('* as c').first();
           if (Number(countRow.c) >= MAX_PLAYERS) room = null;
         }
         if (!room) {
-          const [created] = await trx('game_rooms').insert({ id: crypto.randomUUID(), level, entry_fee: entryFee, status: 'WAITING' }).returning('*');
+          const [created] = await trx('game_rooms').insert({ id: crypto.randomUUID(), level, entry_fee: entryFee, status: 'WAITING', is_demo: demoMode }).returning('*');
           room = created;
         }
 
@@ -51,13 +53,14 @@ router.post('/join', telegramAuthMiddleware, async (req, res) => {
         }
 
         const card = generateCard();
-        await trx('users').where({ id: user.id }).decrement('wallet_balance', entryFee);
+        await trx('users').where({ id: user.id }).decrement(balanceField, entryFee);
         await trx('room_participants').insert({ room_id: room.id, user_id: user.id, card: JSON.stringify(card) });
         await trx('financial_ledger').insert({
           user_id: user.id,
           amount: -entryFee,
-          type: 'ENTRY_FEE',
+          type: demoMode ? 'DEMO_ENTRY_FEE' : 'ENTRY_FEE',
           reference_id: `ROOM_${room.id}`,
+          is_demo: demoMode,
         });
         return { room, card, alreadyJoined: false };
       });
@@ -77,6 +80,7 @@ router.get('/:id', telegramAuthMiddleware, async (req, res) => {
   try {
     const room = await db('game_rooms').where({ id: req.params.id }).first();
     if (!room) return res.status(404).json({ error: 'Room not found' });
+    if (Boolean(room.is_demo) !== isDemoMode()) return res.status(404).json({ error: 'Room not found' });
     const participants = await db('room_participants').where({ room_id: room.id });
     res.json({ room, participants: participants.map(p => ({ user_id: p.user_id, joined_at: p.joined_at })) });
   } catch (err) {

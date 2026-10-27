@@ -40,13 +40,20 @@ async function processRoomPayout(dbConn, roomId, winnerUserId) {
     const referralCommissionCents = Math.round((platformGrossCents * REFERRAL_COMMISSION_BASIS_POINTS) / 10000);
     const platformNetCents = platformGrossCents - referralCommissionCents;
 
-    // Credit winner
-    await trx('users').where({ id: winnerUserId }).increment('wallet_balance', fromCents(winnerPrizeCents));
+    const isDemo = Boolean(room.is_demo);
+  const balanceField = isDemo ? 'demo_wallet_balance' : 'wallet_balance';
+  const commissionField = isDemo ? 'demo_commission_balance' : 'commission_balance';
+  const winningType = isDemo ? 'DEMO_WINNING_PAYOUT' : 'WINNING_PAYOUT';
+  const commissionType = isDemo ? 'DEMO_AGENT_COMMISSION' : 'AGENT_COMMISSION';
+
+  // Credit winner (demo-aware)
+    await trx('users').where({ id: winnerUserId }).increment(balanceField, fromCents(winnerPrizeCents));
     await trx('financial_ledger').insert({
       user_id: winnerUserId,
       amount: fromCents(winnerPrizeCents),
-      type: 'WINNING_PAYOUT',
+      type: winningType,
       reference_id: `ROOM_${roomId}`,
+      is_demo: isDemo,
     });
 
     // Referral commission, if the winner has an established referrer.
@@ -55,12 +62,13 @@ async function processRoomPayout(dbConn, roomId, winnerUserId) {
     if (winner && winner.agent_username && referralCommissionCents > 0) {
       const agent = await trx('agents').where({ telegram_username: winner.agent_username }).first();
       if (agent) {
-        await trx('agents').where({ id: agent.id }).increment('commission_balance', fromCents(referralCommissionCents));
+        await trx('agents').where({ id: agent.id }).increment(commissionField, fromCents(referralCommissionCents));
         await trx('financial_ledger').insert({
           user_id: agent.user_id,
           amount: fromCents(referralCommissionCents),
-          type: 'AGENT_COMMISSION',
+          type: commissionType,
           reference_id: `AGENT_REF_${winnerUserId}_ROOM_${roomId}`,
+          is_demo: isDemo,
         });
         referralPaid = true;
       }
