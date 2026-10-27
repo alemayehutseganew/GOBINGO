@@ -31,17 +31,32 @@ function createBot(token) {
   return bot;
 }
 
-async function launchBot(bot) {
+async function launchBot(bot, onLaunch) {
   if (!bot) return false;
   const isProd = process.env.NODE_ENV === 'production';
   const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL;
   if (isProd && webhookUrl) {
-    const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
-    await bot.telegram.setWebhook(webhookUrl, secret ? { secret_token: secret } : undefined);
-    return true;
+    try {
+      const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
+      await bot.telegram.setWebhook(webhookUrl, secret ? { secret_token: secret } : undefined);
+      if (typeof onLaunch === 'function') onLaunch();
+      return true;
+    } catch (e) {
+      console.warn('[TELEGRAM] Bot launch failed:', e && e.message ? e.message : 'unknown error');
+      return false;
+    }
   }
-  await bot.launch();
-  return true;
+  // Telegraf's launch() promise stays pending while polling, so success is
+  // reported through its onLaunch callback (fired after getMe()).
+  try {
+    bot.launch(typeof onLaunch === 'function' ? onLaunch : undefined).catch((e) => {
+      console.warn('[TELEGRAM] Bot launch failed:', e && e.message ? e.message : 'unknown error');
+    });
+    return true;
+  } catch (e) {
+    console.warn('[TELEGRAM] Bot launch failed:', e && e.message ? e.message : 'unknown error');
+    return false;
+  }
 }
 
 function stopBot(bot) {

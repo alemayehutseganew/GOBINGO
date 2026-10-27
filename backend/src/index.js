@@ -38,16 +38,15 @@ async function start() {
     const { isBotConfigured, createBot, launchBot } = require('./bot/telegramBot');
     if (isBotConfigured()) {
       const bot = createBot();
-      if (bot && !telegramBotInstance) {
-        launchBot(bot)
-          .then(() => {
+      if (bot) {
+        console.log('[TELEGRAM] Bot launching');
+        if (!telegramBotInstance) {
+          launchBot(bot, () => {
             telegramBotInstance = bot;
             app.set('telegramBot', bot);
             console.log('[TELEGRAM] Bot launched');
-          })
-          .catch((e) => {
-            console.warn('[TELEGRAM] Bot launch failed:', e && e.message ? e.message : 'unknown error');
           });
+        }
       }
     } else {
       console.log('[TELEGRAM] Bot not configured (TELEGRAM_BOT_TOKEN missing/placeholder); skipping.');

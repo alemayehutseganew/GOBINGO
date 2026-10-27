@@ -13,7 +13,15 @@ async function setupSocketRedis(io) {
 
   const pubClient = createClient({
     url: process.env.REDIS_URL,
-    socket: { connectTimeout: 5000, reconnectStrategy: () => false },
+    socket: {
+      connectTimeout: 5000,
+      reconnectStrategy: (retries) => {
+        if (retries > 10) return false;
+        const delay = Math.min(retries * 200, 2000);
+        console.warn(`[REDIS] Connection failed; retrying in ${delay}ms (attempt ${retries + 1}/10).`);
+        return delay;
+      },
+    },
   });
   const subClient = pubClient.duplicate();
 
