@@ -4,9 +4,10 @@ const { createClient } = require('redis');
 async function setupSocketRedis(io) {
   if (!process.env.REDIS_URL) {
     if (process.env.NODE_ENV === 'production') {
-      throw new Error('REDIS_URL is required in production for shared Socket.IO state');
+      console.warn('[REDIS] REDIS_URL is not set; using in-memory Socket.IO adapter. Game state is not shared across instances and is lost on restart.');
+    } else {
+      console.log('[REDIS] Running with fallback in-memory socket adapter.');
     }
-    console.log('[REDIS] Running with fallback in-memory socket adapter.');
     return;
   }
 

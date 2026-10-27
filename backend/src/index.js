@@ -48,7 +48,7 @@ async function start() {
     console.warn('[TELEGRAM] Bot init error:', e && e.message ? e.message : 'unknown error');
   }
 
-  server.listen(PORT, () => {
+  server.listen(PORT, "0.0.0.0", () => {
     console.log(`GOBINGO backend listening on ${PORT}`);
   });
 }

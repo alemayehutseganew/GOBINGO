@@ -32,8 +32,29 @@ async function getUserByTelegramId(tgId) {
   return db('users').where({ telegram_id: tgId }).first();
 }
 
+function getAllowedOrigins() {
+  return (process.env.CORS_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+function isOriginAllowed(origin) {
+  if (!origin) return true;
+  if (process.env.NODE_ENV !== 'production') return true;
+  const allowed = getAllowedOrigins();
+  if (allowed.length === 0) return origin === 'https://gobingo-rho.vercel.app';
+  return allowed.includes(origin);
+}
+
 function setupSocket(server) {
-  const io = new Server(server, { cors: { origin: '*', methods: ['GET', 'POST'] } });
+  const io = new Server(server, {
+    cors: {
+      origin: (origin, callback) => {
+        if (isOriginAllowed(origin)) callback(null, true);
+        else callback(new Error('Not allowed by CORS'));
+      },
+      methods: ['GET', 'POST'],
+      credentials: true,
+    },
+  });
 
   io.use((socket, next) => {
     const tgUser = parseUser(socket);
