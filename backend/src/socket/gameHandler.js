@@ -15,23 +15,40 @@ function parseUser(socket) {
   const isProduction = process.env.NODE_ENV === 'production';
   if (!isProduction && (!botToken || botToken === 'your-telegram-bot-token')) {
     if (socket.handshake.auth?.devUser) {
-      try { return JSON.parse(socket.handshake.auth.devUser); } catch (e) {}
+      try {
+        const parsed = JSON.parse(socket.handshake.auth.devUser);
+        if (parsed && parsed.id !== undefined && parsed.id !== null) {
+          return parsed;
+        }
+      } catch (e) {}
     }
     if (initData) {
       const params = new URLSearchParams(initData);
       const u = params.get('user');
-      if (u) { try { return JSON.parse(u); } catch (e) {} }
+      if (u) {
+        try {
+          const parsed = JSON.parse(u);
+          if (parsed && parsed.id !== undefined && parsed.id !== null) {
+            return parsed;
+          }
+        } catch (e) {}
+      }
     }
     return null;
   }
   if (botToken && botToken !== 'your-telegram-bot-token' && initData) {
-    const u = validateTelegramInitData(initData, botToken);
-    if (u) return u;
+    const result = validateTelegramInitData(initData, botToken);
+    if (result && result.ok && result.user && result.user.id !== undefined && result.user.id !== null) {
+      return result.user;
+    }
   }
   return null;
 }
 
 async function getUserByTelegramId(tgId) {
+  if (tgId === undefined || tgId === null || tgId === '') {
+    throw new Error('Missing Telegram ID');
+  }
   return db('users').where({ telegram_id: tgId }).first();
 }
 
@@ -61,7 +78,9 @@ function setupSocket(server) {
 
   io.use((socket, next) => {
     const tgUser = parseUser(socket);
-    if (!tgUser) return next(new Error('Unauthorized'));
+    if (!tgUser || tgUser.id === undefined || tgUser.id === null || tgUser.id === '') {
+    return next(new Error('Unauthorized'));
+  }
     socket.tgUser = tgUser;
     next();
   });
@@ -150,4 +169,4 @@ function setupSocket(server) {
   return io;
 }
 
-module.exports = { setupSocket, activeGames };
+module.exports = { setupSocket, activeGames, parseUser };
