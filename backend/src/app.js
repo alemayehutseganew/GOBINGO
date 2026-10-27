@@ -8,14 +8,47 @@ const rateLimit = require('express-rate-limit');
 
 const app = express();
 const isProduction = process.env.NODE_ENV === 'production';
-const allowedOrigins = (process.env.CORS_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
-app.use(helmet());
-app.use(cors({
-  origin: isProduction
-    ? (allowedOrigins.length ? allowedOrigins : false)
-    : true,
+
+// Allowed browser origins. Production deployments must set CORS_ORIGINS, but the
+// known frontend origins below are always permitted so a missing/short Render
+// value cannot silently disable all browser access. Development origins remain
+// available in every environment. Wildcard origins are never used.
+const DEFAULT_ALLOWED_ORIGINS = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'https://gobingo-rho.vercel.app',
+  'https://gobingo-j2mzs02l3-alemayehutseganews-projects.vercel.app',
+];
+
+function getAllowedOrigins() {
+  const configured = (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return [...new Set([...configured, ...DEFAULT_ALLOWED_ORIGINS])];
+}
+
+const allowedOrigins = getAllowedOrigins();
+
+const corsOptions = {
+  origin(origin, callback) {
+    // Same-origin/server-to-server requests have no Origin header.
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(null, false);
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-telegram-init-data', 'x-dev-user'],
   credentials: true,
-}));
+  optionsSuccessStatus: 204,
+};
+
+app.use(helmet());
+app.use(cors(corsOptions));
+// Ensure preflight requests are answered even when no route-level handler exists.
+app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '1mb' }));
 
 const globalLimiter = rateLimit({ windowMs: 60 * 1000, max: isProduction ? 300 : 1000, standardHeaders: true, legacyHeaders: false });

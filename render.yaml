@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: gobingo-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm ci && npm run migrate
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: PAYMENT_PROVIDER
+        sync: false
+      - key: ALLOW_MOCK_PAYMENTS
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false

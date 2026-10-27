@@ -23,6 +23,7 @@ export const strings = {
   depositSuccess: 'ገንዘብ በተሳካ ሁኔታ ገብቷል',
   depositPending: 'ክፍያ በሂደት ላይ ነው',
   error: 'ስህተት ተከስቷል',
+  openInTelegram: 'እባክዎ ይህን መተግበሪያ ከTelegram ውስጥ ይክፈቱ',
   players: 'ተጫዋቾች',
   room: 'ክፍል',
   back: 'ተመለስ',

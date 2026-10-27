@@ -7,7 +7,7 @@ const SocketService = {
   connect() {
     const initData = TelegramAuth.initData() || localStorage.getItem('initData') || '';
     const devUser = localStorage.getItem('devUser');
-    const url = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || window.location.origin;
+    const url = (import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || window.location.origin).replace(/\/$/, '');
     const auth = {};
     if (initData) auth.initData = initData;
     if (devUser && !initData) auth.devUser = devUser;

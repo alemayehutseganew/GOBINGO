@@ -10,18 +10,35 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [page, setPage] = useState('lobby');
   const [activeRoom, setActiveRoom] = useState(null);
+  const [startupError, setStartupError] = useState('');
 
   useEffect(() => {
     TelegramAuth.init();
     (async () => {
       try {
+        if (!TelegramAuth.initData() && import.meta.env.PROD) {
+          setStartupError(t('openInTelegram'));
+          return;
+        }
         const u = await TelegramAuth.login();
         setUser(u);
       } catch (e) {
         console.error(e);
+        setStartupError(e?.message || t('error'));
       }
     })();
   }, []);
+
+  if (startupError) {
+    return (
+      <div className="flex items-center justify-center h-screen px-6 text-center">
+        <div className="max-w-md">
+          <h1 className="text-xl font-bold text-amber-400 mb-3">GOBINGO</h1>
+          <p className="text-red-300">{startupError}</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     return <div className="flex items-center justify-center h-screen">{t('loading')}</div>;

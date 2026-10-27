@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || '';
+const API_BASE = (import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
 
 function headers(initData) {
   const h = { 'Content-Type': 'application/json' };
@@ -12,10 +12,21 @@ function headers(initData) {
 
 async function request(path, opts = {}) {
   const initData = (window.Telegram?.WebApp?.initData) || localStorage.getItem('initData') || '';
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...opts,
-    headers: { ...headers(initData), ...(opts.headers || {}) },
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...opts,
+      signal: controller.signal,
+      headers: { ...headers(initData), ...(opts.headers || {}) },
+    });
+  } catch (e) {
+    clearTimeout(timeout);
+    if (e.name === 'AbortError') throw new Error('Request timed out');
+    throw e;
+  }
+  clearTimeout(timeout);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || res.statusText);
