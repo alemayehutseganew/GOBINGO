@@ -4,7 +4,7 @@
   "description": "GOBINGO real-time multiplayer 75-ball Ethiopian Bingo backend",
   "main": "src/index.js",
   "engines": {
-    "node": ">=20"
+    "node": "22.x"
   },
   "scripts": {
     "start": "node src/index.js",
