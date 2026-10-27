@@ -7,6 +7,10 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
 const app = express();
+
+// Render runs one proxy hop in front of the app.
+app.set('trust proxy', 1);
+
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Allowed browser origins. Production deployments must set CORS_ORIGINS, but the
