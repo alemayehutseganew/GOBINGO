@@ -151,7 +151,7 @@ function setupSocket(server) {
         if (!room || Boolean(room.is_demo) !== isDemoMode()) { socket.emit('claim_result', { valid: false, reason: 'Room mode mismatch' }); return; }
         const drawnNumbers = room.drawn_numbers || game.drawn;
         const result = validateClaim(participant.card, drawnNumbers);
-        if (!result.valid) { socket.emit('claim_result', { valid: false, patterns: result.patterns }); return; }
+        if (!result.valid) { socket.emit('claim_result', { valid: false, reason: 'Invalid card', patterns: result.patterns }); return; }
         if (game.stopped) { socket.emit('claim_result', { valid: false, reason: 'Already won' }); return; }
         game.stopped = true;
         if (game.interval) clearInterval(game.interval);
