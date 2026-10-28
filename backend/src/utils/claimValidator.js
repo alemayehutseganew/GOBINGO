@@ -1,6 +1,31 @@
 // Server-side claim validation engine.
 // card: 5x5 array (0 = FREE center)
 // drawn: Set of drawn numbers
+function normalizeCard(card) {
+  if (typeof card === 'string') {
+    try {
+      const parsed = JSON.parse(card);
+      return Array.isArray(parsed) ? parsed : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  return Array.isArray(card) ? card : null;
+}
+
+function normalizeDrawnNumbers(drawnNumbers) {
+  if (Array.isArray(drawnNumbers)) return drawnNumbers;
+  if (typeof drawnNumbers === 'string') {
+    try {
+      const parsed = JSON.parse(drawnNumbers);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  return [];
+}
+
 function buildGrid(card, drawnSet) {
   const grid = [];
   for (let r = 0; r < 5; r++) {
@@ -8,7 +33,8 @@ function buildGrid(card, drawnSet) {
     for (let c = 0; c < 5; c++) {
       const val = card[r]?.[c];
       if (val === 0) grid[r][c] = true;
-      else grid[r][c] = drawnSet.has(val);
+      else if (typeof val === 'number' && Number.isFinite(val)) grid[r][c] = drawnSet.has(val);
+      else grid[r][c] = false;
     }
   }
   return grid;
@@ -30,13 +56,19 @@ function checkLines(grid) {
 }
 
 function validateClaim(card, drawnNumbers = []) {
-  if (!Array.isArray(card) || card.length !== 5) {
+  const normalizedCard = normalizeCard(card);
+  if (!Array.isArray(normalizedCard) || normalizedCard.length !== 5) {
     return { valid: false, patterns: [] };
   }
 
-  const normalized = card.map((row) => Array.isArray(row) ? row : []);
-  const drawnSet = new Set((drawnNumbers || []).map((n) => Number(n)));
-  const grid = buildGrid(normalized, drawnSet);
+  const normalizedDrawn = normalizeDrawnNumbers(drawnNumbers);
+  const drawnSet = new Set(
+    normalizedDrawn
+      .map((n) => Number(n))
+      .filter((n) => Number.isFinite(n))
+  );
+
+  const grid = buildGrid(normalizedCard, drawnSet);
   const wins = checkLines(grid);
   return { valid: wins.length > 0, patterns: wins };
 }
