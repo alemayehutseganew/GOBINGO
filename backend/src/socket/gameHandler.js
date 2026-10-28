@@ -8,6 +8,7 @@ const {
   isPatternSupported,
   normalizePattern,
   validateCard,
+  normalizeAllowedPatterns,
 } = require('../utils/claimValidator');
 const { isDemoMode } = require('../config/env');
 const { processRoomPayout } = require('../services/payoutService');
@@ -98,6 +99,81 @@ function getAllowedPatterns(room) {
     if (normalized.length > 0) return normalized;
   }
   return [...DEFAULT_GAME_PATTERNS];
+}
+
+function getSelectedPatterns(participant) {
+  if (!participant) return [];
+  return normalizeAllowedPatterns(participant.selected_patterns);
+}
+
+function validatePatternSelection(patterns, availablePatterns) {
+  const available = normalizeAllowedPatterns(availablePatterns);
+  if (!Array.isArray(patterns)) {
+    return { valid: false, error: 'Selection must be an array', patterns: [] };
+  }
+  if (patterns.length === 0) {
+    return { valid: false, error: 'At least one pattern must be selected', patterns: [] };
+  }
+  const maxSelectable = Number(process.env.MAX_SELECTABLE_PATTERNS || 0);
+  if (maxSelectable > 0 && patterns.length > maxSelectable) {
+    return { valid: false, error: `Maximum ${maxSelectable} patterns allowed`, patterns: [] };
+  }
+  const normalized = [];
+  const seen = new Set();
+  for (const pattern of patterns) {
+    const canonical = normalizePattern(pattern);
+    if (!canonical || !isPatternSupported(canonical)) {
+      return { valid: false, error: `Unknown pattern: ${pattern}`, patterns: [] };
+    }
+    if (!available.includes(canonical)) {
+      return { valid: false, error: `Pattern not available: ${canonical}`, patterns: [] };
+    }
+    if (!seen.has(canonical)) {
+      seen.add(canonical);
+      normalized.push(canonical);
+    }
+  }
+  if (normalized.length === 0) {
+    return { valid: false, error: 'At least one pattern must be selected', patterns: [] };
+  }
+  return { valid: true, error: null, patterns: normalized };
+}
+function getSelectedPatterns(participant) {
+  if (!participant) return [];
+  return normalizeAllowedPatterns(participant.selected_patterns);
+}
+
+function validatePatternSelection(patterns, availablePatterns) {
+  const available = normalizeAllowedPatterns(availablePatterns);
+  if (!Array.isArray(patterns)) {
+    return { valid: false, error: 'Selection must be an array', patterns: [] };
+  }
+  if (patterns.length === 0) {
+    return { valid: false, error: 'At least one pattern must be selected', patterns: [] };
+  }
+  const maxSelectable = Number(process.env.MAX_SELECTABLE_PATTERNS || 0);
+  if (maxSelectable > 0 && patterns.length > maxSelectable) {
+    return { valid: false, error: `Maximum ${maxSelectable} patterns allowed`, patterns: [] };
+  }
+  const normalized = [];
+  const seen = new Set();
+  for (const pattern of patterns) {
+    const canonical = normalizePattern(pattern);
+    if (!canonical || !isPatternSupported(canonical)) {
+      return { valid: false, error: `Unknown pattern: ${pattern}`, patterns: [] };
+    }
+    if (!available.includes(canonical)) {
+      return { valid: false, error: `Pattern not available: ${canonical}`, patterns: [] };
+    }
+    if (!seen.has(canonical)) {
+      seen.add(canonical);
+      normalized.push(canonical);
+    }
+  }
+  if (normalized.length === 0) {
+    return { valid: false, error: 'At least one pattern must be selected', patterns: [] };
+  }
+  return { valid: true, error: null, patterns: normalized };
 }
 
 async function consumeNextDraw(roomId) {
@@ -273,6 +349,14 @@ async function startRoomGame(io, roomId) {
       if (room.registration_ends_at && new Date(room.registration_ends_at).getTime() > Date.now()) throw new Error('Registration is still open');
       const participants = await trx('room_participants').where({ room_id: roomId });
       if (participants.length < MIN_PLAYERS) throw new Error('At least 2 players are required');
+      // Gate: every participant must have at least one valid selected pattern
+      const availablePatterns = getAllowedPatterns(room);
+      for (const p of participants) {
+        const sel = getSelectedPatterns(p);
+        if (sel.length === 0) throw new Error('All players must select patterns before starting');
+        const validation = validatePatternSelection(sel, availablePatterns);
+        if (!validation.valid) throw new Error('All players must select patterns before starting');
+      }
       const pool = createDrawPool();
       const winningPatterns = getAllowedPatterns(room);
       const [updated] = await trx('game_rooms').where({ id: roomId, status: 'WAITING' }).update({
@@ -360,12 +444,57 @@ function setupSocket(server) {
           drawIndex: room.draw_index || 0,
           latestNumber: room.latest_number,
           winningPatterns: room.winning_patterns || null,
-          participants: participants.map((p) => ({ user_id: p.user_id })),
+          availablePatterns: getAllowedPatterns(room),
+          selectedPatterns: getSelectedPatterns(participant),
+          participants: participants.map((p) => ({ user_id: p.user_id, selectedPatterns: getSelectedPatterns(p) })),
         });
         io.to(roomId).emit('player_joined', { userId: user.id, count: participants.length });
       } catch (err) {
         console.error(err);
         socket.emit('error', { message: 'Join room failed' });
+      }
+    });
+
+    socket.on('select_patterns', async ({ roomId, patterns }) => {
+      try {
+        const user = await getUserByTelegramId(socket.tgUser.id);
+        if (!user) { socket.emit('pattern_selection_result', { ok: false, error: 'User not found' }); return; }
+        const participant = await db('room_participants').where({ room_id: roomId, user_id: user.id }).first();
+        if (!participant) { socket.emit('pattern_selection_result', { ok: false, error: 'Not a participant' }); return; }
+        const room = await db('game_rooms').where({ id: roomId }).first();
+        if (!room || Boolean(room.is_demo) !== isDemoMode()) { socket.emit('pattern_selection_result', { ok: false, error: 'Room mode mismatch' }); return; }
+        if (room.status !== 'WAITING') { socket.emit('pattern_selection_result', { ok: false, error: 'Selections are locked' }); return; }
+
+        const availablePatterns = getAllowedPatterns(room);
+        const validation = validatePatternSelection(patterns, availablePatterns);
+        if (!validation.valid) {
+          socket.emit('pattern_selection_result', { ok: false, error: validation.error });
+          return;
+        }
+
+        await db('room_participants').where({ id: participant.id }).update({
+          selected_patterns: JSON.stringify(validation.patterns),
+        });
+
+        socket.emit('pattern_selection_result', { ok: true, patterns: validation.patterns });
+
+        const updatedParticipants = await db('room_participants').where({ room_id: roomId });
+        const readyCount = updatedParticipants.filter((p) => {
+          const sel = getSelectedPatterns(p);
+          return sel.length > 0;
+        }).length;
+
+        io.to(roomId).emit('player_patterns_updated', {
+          userId: user.id,
+          patterns: validation.patterns,
+        });
+        io.to(roomId).emit('pattern_selection_status', {
+          ready: readyCount,
+          total: updatedParticipants.length,
+        });
+      } catch (err) {
+        console.error(err);
+        socket.emit('pattern_selection_result', { ok: false, error: err && err.message ? err.message : 'Selection failed' });
       }
     });
 
@@ -414,7 +543,11 @@ function setupSocket(server) {
         if (!room || Boolean(room.is_demo) !== isDemoMode()) { socket.emit('claim_result', { valid: false, reason: 'Room mode mismatch' }); return; }
         const drawnNumbers = Array.isArray(room.drawn_numbers) ? room.drawn_numbers : (game ? game.drawn : []);
         const latestNumber = room.latest_number === undefined ? (drawnNumbers.length ? drawnNumbers[drawnNumbers.length - 1] : null) : room.latest_number;
-        const allowedPatterns = getAllowedPatterns(room);
+        const allowedPatterns = getSelectedPatterns(participant);
+        if (allowedPatterns.length === 0) {
+          socket.emit('claim_result', { valid: false, reason: 'No patterns selected' });
+          return;
+        }
         const cardValidation = validateCard(participant.card);
         if (!cardValidation.valid) {
           socket.emit('claim_result', { valid: false, reason: 'Invalid card' });
@@ -423,7 +556,7 @@ function setupSocket(server) {
         const completedPatterns = evaluatePatterns(participant.card, drawnNumbers, allowedPatterns);
         const eligiblePatterns = completedPatterns.filter((pattern) => closingNumberInPattern(participant.card, pattern, latestNumber));
         if (eligiblePatterns.length === 0) {
-          const reason = completedPatterns.length === 0 ? 'No winning pattern' : 'Closing number not in claimed pattern';
+          const reason = completedPatterns.length === 0 ? 'No winning pattern in your selected patterns' : 'Closing number not in claimed pattern';
           socket.emit('claim_result', { valid: false, patterns: completedPatterns, reason });
           return;
         }
@@ -441,7 +574,9 @@ function setupSocket(server) {
             if (!lockedParticipant) throw new Error('Not a participant');
             const lockedDrawn = Array.isArray(lockedRoom.drawn_numbers) ? lockedRoom.drawn_numbers : [];
             const lockedLatest = lockedRoom.latest_number === undefined ? (lockedDrawn.length ? lockedDrawn[lockedDrawn.length - 1] : null) : lockedRoom.latest_number;
-            const lockedAllowed = getAllowedPatterns(lockedRoom);
+             const lockedSelected = getSelectedPatterns(lockedParticipant);
+             if (lockedSelected.length === 0) throw new Error('No patterns selected');
+             const lockedAllowed = lockedSelected;
             const lockedCompleted = evaluatePatterns(lockedParticipant.card, lockedDrawn, lockedAllowed);
             const lockedEligible = lockedCompleted.filter((pattern) => closingNumberInPattern(lockedParticipant.card, pattern, lockedLatest));
             if (lockedEligible.length === 0) throw new Error('No eligible winning pattern');
@@ -506,4 +641,4 @@ async function recoverRunningGames(io) {
   }
 }
 
-module.exports = { setupSocket, activeGames, parseUser, recoverRunningGames, startRoomGame };
+module.exports = { setupSocket, activeGames, parseUser, recoverRunningGames, startRoomGame, getAllowedPatterns, getSelectedPatterns, validatePatternSelection };

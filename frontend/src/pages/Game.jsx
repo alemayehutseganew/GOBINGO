@@ -5,6 +5,7 @@ import BingoCard from '../components/BingoCard.jsx';
 import NumberChart from '../components/NumberChart.jsx';
 import LatestCalledBall from '../components/LatestCalledBall.jsx';
 import CardSelectionBoard from '../components/CardSelectionBoard.jsx';
+import PatternPicker from '../components/PatternPicker.jsx';
 import { t } from '../i18n/am.js';
 
 export default function Game({ user, room, card, isDemo, onBack }) {
@@ -19,7 +20,13 @@ export default function Game({ user, room, card, isDemo, onBack }) {
   const [starting, setStarting] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [cardState, setCardState] = useState(card);
+  const [availablePatterns, setAvailablePatterns] = useState([]);
+  const [selectedPatterns, setSelectedPatterns] = useState([]);
+  const [patternReadyCount, setPatternReadyCount] = useState(0);
+  const [patternTotalCount, setPatternTotalCount] = useState(0);
+  const [patternError, setPatternError] = useState('');
   const [selectedCards, setSelectedCards] = useState([]);
+
   const socket = SocketService.get();
   const roomIdRef = useRef(room.id);
   const isMountedRef = useRef(true);
@@ -70,8 +77,31 @@ export default function Game({ user, room, card, isDemo, onBack }) {
       if (Array.isArray(s.participants)) setParticipants(s.participants.length);
       if (s.card) setCardState(s.card);
       if (Array.isArray(s.selectedCards)) setSelectedCards(s.selectedCards);
+      if (Array.isArray(s.availablePatterns)) setAvailablePatterns(s.availablePatterns);
+      if (Array.isArray(s.selectedPatterns)) setSelectedPatterns(s.selectedPatterns);
+      if (s.participants && Array.isArray(s.participants)) {
+        const ready = s.participants.filter((p) => Array.isArray(p.selectedPatterns) && p.selectedPatterns.length > 0).length;
+        setPatternReadyCount(ready);
+        setPatternTotalCount(s.participants.length);
+      }
     });
-    const onPlayerJoined = guarded(({ count }) => setParticipants(count));
+    const onPlayerPatternsUpdated = guarded(({ userId, patterns }) => {
+      // Update participants' selected patterns
+    });
+    const onPatternSelectionStatus = guarded(({ ready, total }) => {
+      setPatternReadyCount(ready);
+      setPatternTotalCount(total);
+    });
+    const onPatternSelectionResult = guarded((result) => {
+      if (result && result.ok) {
+        if (Array.isArray(result.patterns)) setSelectedPatterns(result.patterns);
+        setPatternError('');
+      } else {
+        setPatternError(result?.error || 'Selection failed');
+        // Restore last confirmed selection by re-requesting room state
+        socket.emit('join_room', { roomId: currentRoomId });
+      }
+    });
     const onGameStarted = guarded(({ roomId } = {}) => {
       if (roomId && roomId !== currentRoomId) return;
       setStatus('RUNNING');
@@ -131,6 +161,9 @@ export default function Game({ user, room, card, isDemo, onBack }) {
     socket.on('disconnect', onDisconnect);
     socket.on('room_state', onRoomState);
     socket.on('player_joined', onPlayerJoined);
+    socket.on('player_patterns_updated', onPlayerPatternsUpdated);
+    socket.on('pattern_selection_status', onPatternSelectionStatus);
+    socket.on('pattern_selection_result', onPatternSelectionResult);
     socket.on('game_started', onGameStarted);
     socket.on('number_drawn', onNumberDrawn);
     socket.on('claim_result', onClaimResult);
@@ -149,6 +182,9 @@ export default function Game({ user, room, card, isDemo, onBack }) {
       socket.off('disconnect', onDisconnect);
       socket.off('room_state', onRoomState);
       socket.off('player_joined', onPlayerJoined);
+      socket.off('player_patterns_updated', onPlayerPatternsUpdated);
+      socket.off('pattern_selection_status', onPatternSelectionStatus);
+      socket.off('pattern_selection_result', onPatternSelectionResult);
       socket.off('game_started', onGameStarted);
       socket.off('number_drawn', onNumberDrawn);
       socket.off('claim_result', onClaimResult);
@@ -159,7 +195,15 @@ export default function Game({ user, room, card, isDemo, onBack }) {
     };
   }, [socket, room.id, user?.id, user?.telegram_id]);
 
-  const startGame = () => {
+  const savePatterns = (patterns) => {
+    if (!socket || !connected) return;
+    socket.emit('select_patterns', { roomId: room.id, patterns });
+  };
+
+  const handlePatternChange = (patterns) => {
+    setSelectedPatterns(patterns);
+    savePatterns(patterns);
+  };
     if (starting || status !== 'WAITING' || !connected) return;
     setStarting(true);
     socket.emit('start_game', { roomId: room.id });
@@ -251,7 +295,17 @@ export default function Game({ user, room, card, isDemo, onBack }) {
                 </div>
               </div>
             </div>
-            {Array.isArray(selectedCards[0]?.card || cardState) && (
+            {status === 'WAITING' && (
+          <div className="space-y-3">
+            {patternError && <div className="rounded bg-red-900/40 p-2 text-xs text-red-200">{patternError}</div>}
+            <PatternPicker
+              availablePatterns={availablePatterns}
+              selectedPatterns={selectedPatterns}
+              onSelectionChange={handlePatternChange}
+              disabled={status !== 'WAITING'}
+            />
+          </div>
+        )}
               <BingoCard card={selectedCards[0]?.card || cardState} drawn={drawn} />
             )}
           </div>
@@ -260,13 +314,18 @@ export default function Game({ user, room, card, isDemo, onBack }) {
 
       <div className="mt-3 flex gap-2">
         {status === 'WAITING' && (
-          <button
-            onClick={startGame}
-            disabled={starting || !connected}
-            className="flex-1 rounded bg-emerald-600 py-2 font-bold disabled:opacity-60"
-          >
-            {starting ? '...' : t('startGame')}
-          </button>
+          <div className="space-y-2">
+            <div className="text-xs text-slate-300 text-center">
+              {patternReadyCount} / {patternTotalCount} players have picked patterns
+            </div>
+            <button
+              onClick={startGame}
+              disabled={starting || !connected || patternReadyCount < patternTotalCount || patternTotalCount === 0}
+              className="w-full rounded bg-emerald-600 py-2 font-bold disabled:opacity-60"
+            >
+              {starting ? '...' : t('startGame')}
+            </button>
+          </div>
         )}
         {status === 'RUNNING' && (
           <button
