@@ -47,6 +47,8 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
         working-directory: backend
+      - run: node ./tests/testDbSafety.js && npm run migrate
+        working-directory: backend
       - run: npm test
         working-directory: backend
 
