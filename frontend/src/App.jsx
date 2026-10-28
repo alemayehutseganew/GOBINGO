@@ -66,7 +66,7 @@ export default function App() {
       <main className="mx-auto max-w-md p-3">
         {isDemo && <DemoBanner />}
         {page === 'lobby' && <Lobby user={user} isDemo={isDemo} onJoinRoom={(r, card) => { setActiveRoom({ room: r, card }); setPage('game'); }} />}
-        {page === 'game' && activeRoom && <Game user={user} room={activeRoom.room} card={activeRoom.card} isDemo={isDemo} onBack={() => setPage('lobby')} />}
+        {page === 'game' && activeRoom && activeRoom.room && <Game user={user} room={activeRoom.room} card={activeRoom.card} isDemo={isDemo} onBack={() => setPage('lobby')} />}
         {page === 'wallet' && <Wallet user={user} isDemo={isDemo} />}
       </main>
     </div>

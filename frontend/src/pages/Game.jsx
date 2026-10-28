@@ -203,7 +203,7 @@ export default function Game({ user, room, card, isDemo, onBack }) {
       </section>
       <div className="mb-3 flex items-center justify-between">
         <button onClick={onBack} className="text-amber-400">{t('back')}</button>
-        <span className="text-sm text-slate-400">{t('room')}: {room.id.slice(0, 8)}</span>
+        <span className="text-sm text-slate-400">{t('room')}: {String(room?.id || '').slice(0, 8)}</span>
       </div>
 
       <div className="mb-3 rounded bg-slate-800 p-3 text-center">
