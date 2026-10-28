@@ -166,7 +166,7 @@ describe('Telegram initData validation (additional spec cases)', () => {
   });
 
   it('accepts a token with surrounding whitespace', () => {
-    const initData = buildInitData({ token: FIXED_TOKEN });
+    const initData = buildInitData({ token: FIXED_TOKEN.trim() });
     const result = validateTelegramInitData(initData, `  ${FIXED_TOKEN}  `);
     expect(result.ok).toBe(true);
   });
