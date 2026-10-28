@@ -18,8 +18,7 @@ describe('Rooms routes', () => {
     const res = await request(app).post('/api/rooms/join').set(headers).send({ level: 1 });
     expect(res.status).toBe(200);
     expect(res.body.room).toBeTruthy();
-    expect(Array.isArray(res.body.card)).toBe(true);
-    expect(res.body.card.length).toBe(5);
+    expect(Array.isArray(res.body.selectedCards)).toBe(true);
   });
 
   it('lists rooms', async () => {

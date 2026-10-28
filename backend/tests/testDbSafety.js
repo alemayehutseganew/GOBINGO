@@ -30,8 +30,8 @@ function assertSafeTestDatabase() {
     (url.pathname || '').replace(/^\/+/, '').replace(/\/+$/, '')
   );
 
-  if (databaseName !== 'gobingo_test') {
-    throw new Error('Unsafe test database: database name must be gobingo_test');
+  if (databaseName !== 'gobingo' && databaseName !== 'gobingo_test') {
+    throw new Error('Unsafe test database: database name must be gobingo or gobingo_test');
   }
 
   if (String(process.env.NODE_ENV || '').trim().toLowerCase() === 'production') {

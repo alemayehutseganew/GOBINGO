@@ -53,7 +53,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100">
-      <header className="flex items-center justify-between gap-2 bg-slate-800 p-3">
+      <header className="flex items-center justify-between gap-2 bg-slate-900 p-2">
         <div className="flex items-center gap-2">
           <h1 className="text-xl font-bold text-amber-400">GOBINGO</h1>
           {isDemo && <DemoBadge />}

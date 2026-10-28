@@ -2,7 +2,8 @@ require('dotenv').config();
 const { validateEnv } = require('./config/env');
 validateEnv();
 const http = require('http');
-const { setupSocket } = require('./socket/gameHandler');
+const roomsRoute = require('./routes/rooms');
+const { setupSocket, recoverRunningGames } = require('./socket/gameHandler');
 const { setupSocketRedis } = require('./sockets/redisAdapter');
 
 const app = require('./app');
@@ -11,6 +12,12 @@ const db = require('./db/knex');
 const server = http.createServer(app);
 const io = setupSocket(server);
 app.set('io', io);
+  recoverRunningGames(io).catch((err) => {
+    console.warn('[GAME] Recovery failed:', err && err.message ? err.message : 'unknown error');
+  });
+  if (typeof roomsRoute.recoverRegistrations === 'function') {
+    roomsRoute.recoverRegistrations(io);
+  }
 
 const PORT = process.env.PORT || 3000;
 

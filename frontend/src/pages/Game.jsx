@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import SocketService from '../services/socket.js';
 import BingoCard from '../components/BingoCard.jsx';
+import NumberChart from '../components/NumberChart.jsx';
+import LatestCalledBall from '../components/LatestCalledBall.jsx';
+import CardSelectionBoard from '../components/CardSelectionBoard.jsx';
 import { t } from '../i18n/am.js';
 
 export default function Game({ user, room, card, isDemo, onBack }) {
@@ -16,6 +19,7 @@ export default function Game({ user, room, card, isDemo, onBack }) {
   const [starting, setStarting] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [cardState, setCardState] = useState(card);
+  const [selectedCards, setSelectedCards] = useState([]);
   const socket = SocketService.get();
   const roomIdRef = useRef(room.id);
   const isMountedRef = useRef(true);
@@ -65,6 +69,7 @@ export default function Game({ user, room, card, isDemo, onBack }) {
       if (s.room && s.room.status) setStatus(s.room.status);
       if (Array.isArray(s.participants)) setParticipants(s.participants.length);
       if (s.card) setCardState(s.card);
+      if (Array.isArray(s.selectedCards)) setSelectedCards(s.selectedCards);
     });
     const onPlayerJoined = guarded(({ count }) => setParticipants(count));
     const onGameStarted = guarded(({ roomId } = {}) => {
@@ -101,12 +106,21 @@ export default function Game({ user, room, card, isDemo, onBack }) {
       setClaiming(false);
       if (claimTimeoutRef.current) { clearTimeout(claimTimeoutRef.current); claimTimeoutRef.current = null; }
     });
+    const onGameCompleted = guarded(() => {
+      setClaimMsg(t('allNumbersCalled'));
+    });
+    const onGameRefunded = guarded(({ entryFeeRefunded }) => {
+      setStatus('CANCELLED');
+      setStarting(false);
+      setClaiming(false);
+      setClaimMsg(`${t('noWinnerRefunded')} ${entryFeeRefunded}`);
+    });
     const onError = guarded(({ message }) => {
       setStarting(false);
       setClaiming(false);
       if (startTimeoutRef.current) { clearTimeout(startTimeoutRef.current); startTimeoutRef.current = null; }
       if (claimTimeoutRef.current) { clearTimeout(claimTimeoutRef.current); claimTimeoutRef.current = null; }
-      setClaimMsg(message || t('error'));
+      setClaimMsg(message === 'At least 2 players are required' ? t('atLeast2Players') : (message || t('error')));
       if (claimMsgTimeoutRef.current) clearTimeout(claimMsgTimeoutRef.current);
       claimMsgTimeoutRef.current = window.setTimeout(() => {
         if (isMountedRef.current && roomIdRef.current === currentRoomId) setClaimMsg('');
@@ -121,6 +135,8 @@ export default function Game({ user, room, card, isDemo, onBack }) {
     socket.on('number_drawn', onNumberDrawn);
     socket.on('claim_result', onClaimResult);
     socket.on('winner', onWinner);
+    socket.on('game_completed', onGameCompleted);
+    socket.on('game_refunded', onGameRefunded);
     socket.on('error', onError);
 
     if (socket.connected) {
@@ -137,6 +153,8 @@ export default function Game({ user, room, card, isDemo, onBack }) {
       socket.off('number_drawn', onNumberDrawn);
       socket.off('claim_result', onClaimResult);
       socket.off('winner', onWinner);
+    socket.off('game_completed', onGameCompleted);
+    socket.off('game_refunded', onGameRefunded);
       socket.off('error', onError);
     };
   }, [socket, room.id, user?.id, user?.telegram_id]);
@@ -165,6 +183,24 @@ export default function Game({ user, room, card, isDemo, onBack }) {
 
   return (
     <div className="mx-auto max-w-md">
+      <section className="mb-3 rounded-lg bg-blue-900/70 p-3 text-slate-100" aria-label="Game statistics">
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-blue-200">Prize pool</div>
+            <div className="mt-1 text-sm font-bold text-white sm:text-base">
+              {participants && room?.entry_fee ? `${(participants * Number(room.entry_fee)).toFixed(2)} ብር` : '—'}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-blue-200">Balls</div>
+            <div className="mt-1 text-sm font-bold text-white sm:text-base">{drawn.length}/75</div>
+          </div>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-blue-200">Players</div>
+            <div className="mt-1 text-sm font-bold text-white sm:text-base">{participants || 0}</div>
+          </div>
+        </div>
+      </section>
       <div className="mb-3 flex items-center justify-between">
         <button onClick={onBack} className="text-amber-400">{t('back')}</button>
         <span className="text-sm text-slate-400">{t('room')}: {room.id.slice(0, 8)}</span>
@@ -188,7 +224,39 @@ export default function Game({ user, room, card, isDemo, onBack }) {
         </div>
       </div>
 
-      <BingoCard card={cardState} drawn={drawn} />
+      {status === 'WAITING' ? (
+        <CardSelectionBoard roomId={room.id} socket={socket} onSelectionChange={setSelectedCards} />
+      ) : (
+        <div className="grid gap-3 lg:grid-cols-[minmax(220px,260px)_minmax(0,1fr)]">
+          <NumberChart drawn={drawn} latest={lastNumber} />
+          <div className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-start">
+              <LatestCalledBall number={lastNumber} />
+              <div className="rounded-lg bg-slate-800 p-3">
+                <div className="mb-2 text-sm font-semibold text-slate-200">Recent calls</div>
+                <div className="flex flex-wrap gap-2">
+                  {drawn.slice(0, -1).slice(-4).reverse().map((number, index) => (
+                    <span
+                      key={`${number}-${index}`}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-700 text-xs font-bold text-slate-100"
+                    >
+                      {number >= 1 && number <= 15 ? 'B' : number <= 30 ? 'I' : number <= 45 ? 'N' : number <= 60 ? 'G' : 'O'}{number}
+                    </span>
+                  ))}
+                  {drawn.length <= 1 && <span className="text-xs text-slate-400">No recent calls yet.</span>}
+                </div>
+                <div className="mt-3 text-xs text-slate-400">
+                  {drawn.length}/75 called
+                  {participants ? ` · ${participants} players` : ''}
+                </div>
+              </div>
+            </div>
+            {Array.isArray(selectedCards[0]?.card || cardState) && (
+              <BingoCard card={selectedCards[0]?.card || cardState} drawn={drawn} />
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="mt-3 flex gap-2">
         {status === 'WAITING' && (
@@ -212,6 +280,13 @@ export default function Game({ user, room, card, isDemo, onBack }) {
       </div>
 
       {claimMsg && <div className="mt-2 text-center text-amber-300" aria-live="polite">{claimMsg}</div>}
+      {status === 'CANCELLED' && (
+        <div className="mt-3 text-center">
+          <button onClick={onBack} className="rounded bg-slate-700 px-4 py-2 font-bold text-slate-100">
+            {t('back')}
+          </button>
+        </div>
+      )}
 
       <AnimatePresence>
         {winner && (
