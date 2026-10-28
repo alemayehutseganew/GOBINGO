@@ -1,4 +1,4 @@
-﻿// Server-side claim validation engine.
+// Server-side claim validation engine.
 //
 // A card is a 5x5 matrix where 0 represents the FREE center. Marking is derived
 // from the authoritative called-number list; client-supplied marked matrices are

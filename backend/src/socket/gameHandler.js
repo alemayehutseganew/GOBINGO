@@ -1,4 +1,4 @@
-﻿const { Server } = require('socket.io');
+const { Server } = require('socket.io');
 const db = require('../db/knex');
 const { validateTelegramInitData } = require('../middleware/telegramAuth');
 const {

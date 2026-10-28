@@ -1,4 +1,4 @@
-﻿// Authoritative draw-pool helpers for 75-ball bingo.
+// Authoritative draw-pool helpers for 75-ball bingo.
 //
 // The draw pool is created with Node.js cryptographically secure randomness.
 // Callers persist and consume the pool through database transactions; this

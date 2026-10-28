@@ -1,4 +1,4 @@
-﻿exports.up = async function (knex) {
+exports.up = async function (knex) {
   const addColumnIfMissing = async (table, column, callback) => {
     const exists = await knex.schema.hasColumn(table, column);
     if (!exists) {

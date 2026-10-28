@@ -1,4 +1,4 @@
-﻿// Generates and validates standard 75-ball bingo cards.
+// Generates and validates standard 75-ball bingo cards.
 //
 // Card representation is a 5x5 row-major matrix. Column 0 is B (1-15),
 // column 1 is I (16-30), column 2 is N (31-45 with a FREE center),
