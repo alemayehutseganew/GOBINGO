@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node ../scripts/ensurePostgres.js && nodemon src/index.js",
-    "migrate": "knex migrate:latest --knexfile knexfile.js",
+    "migrate": "node ./tests/testDbSafety.js && knex migrate:latest --knexfile knexfile.js",
     "migrate:rollback": "knex migrate:rollback --knexfile knexfile.js",
     "seed": "knex seed:run",
     "test": "node ./tests/testDbSafety.js && jest --runInBand --forceExit"

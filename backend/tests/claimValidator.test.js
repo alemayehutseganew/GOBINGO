@@ -10,21 +10,21 @@ describe('Claim validator', () => {
   ];
 
   it('detects a completed row', () => {
-    const drawn = [1, 2, 3, 4, 5];
+    const drawn = [1, 16, 31, 46, 61];
     const res = validateClaim(card, drawn);
     expect(res.valid).toBe(true);
     expect(res.patterns).toContain('ROW_0');
   });
 
   it('detects four corners', () => {
-    const drawn = [1, 5, 21, 25];
+    const drawn = [1, 5, 61, 65];
     const res = validateClaim(card, drawn);
     expect(res.valid).toBe(true);
     expect(res.patterns).toContain('FOUR_CORNERS');
   });
 
   it('detects blackout', () => {
-    const drawn = Array.from({ length: 25 }, (_, i) => i + 1);
+    const drawn = [1, 2, 3, 4, 5, 16, 17, 18, 19, 20, 31, 32, 33, 34, 46, 47, 48, 49, 50, 61, 62, 63, 64, 65];
     const res = validateClaim(card, drawn);
     expect(res.valid).toBe(true);
     expect(res.patterns).toContain('BLACKOUT');

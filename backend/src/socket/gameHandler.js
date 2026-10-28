@@ -483,7 +483,12 @@ function setupSocket(server) {
         socket.emit('claim_result', { valid: true, patterns: eligiblePatterns, payout: payoutInfo });
       } catch (err) {
         console.error(err);
-        socket.emit('claim_result', { valid: false, reason: 'Error' });
+        const reason = err && err.message
+          ? err.message.includes('Invalid card') ? 'Invalid card'
+          : err.message.includes('No eligible winning pattern') ? 'No eligible winning pattern'
+          : err.message
+          : 'Error';
+        socket.emit('claim_result', { valid: false, reason });
       }
     });
 
