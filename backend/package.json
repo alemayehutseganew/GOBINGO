@@ -41,6 +41,9 @@
     "globalSetup": "./tests/globalSetup.js",
     "testMatch": [
       "**/tests/**/*.test.js"
+    ],
+    "modulePathIgnorePatterns": [
+      "node_modules\\.backup-phase-g"
     ]
   }
 }
