@@ -10,3 +10,5 @@ coverage/
 *.crt
 pgdata/
 backend/scripts/
+backend/node_modules.backup-phase-g/
+node_modules.backup-phase-g

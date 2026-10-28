@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const databaseUrl = process.env.DATABASE_URL;
+const databaseUrl = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL;
 if (!databaseUrl) {
   throw new Error('DATABASE_URL is required');
 }

@@ -45,6 +45,9 @@ export const api = {
   joinRoom: (level) => request('/api/rooms/join', { method: 'POST', body: JSON.stringify({ level }) }),
   telebirrDeposit: (amount, phoneNumber) => request('/api/telebirr/deposit', { method: 'POST', body: JSON.stringify({ amount, phoneNumber }) }),
   rooms: () => request('/api/rooms'),
+  roomCards: (roomId) => request(`/api/rooms/${encodeURIComponent(roomId)}/cards`),
+  selectCard: (roomId, cardId) => request(`/api/rooms/${encodeURIComponent(roomId)}/cards/${cardId}`, { method: 'POST' }),
+  releaseCard: (roomId, cardId) => request(`/api/rooms/${encodeURIComponent(roomId)}/cards/${cardId}`, { method: 'DELETE' }),
 };
 
 export default api;

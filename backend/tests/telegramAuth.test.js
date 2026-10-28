@@ -4,6 +4,7 @@ const express = require('express');
 const { validateTelegramInitData, telegramAuthMiddleware } = require('../src/middleware/telegramAuth');
 
 const BOT_TOKEN = '123456:TEST-TOKEN-FOR-UNIT-TESTS';
+const FIXED_TOKEN = '123456789:TEST_TOKEN_WITH_WHITESPACE   ';
 // Independent reference implementation derived from the Telegram spec.
 function referenceValidate(initData, botToken) {
   const token = String(botToken || '').trim();

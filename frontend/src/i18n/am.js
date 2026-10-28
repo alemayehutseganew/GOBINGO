@@ -32,6 +32,9 @@ export const strings = {
   platformFee: 'የመድረክ ክፍያ',
   agentCommission: 'የወኪል ኮሚሽን',
   totalPool: 'ጠቅላላ ገንዘብ',
+  allNumbersCalled: 'ሁሉም ቁጥሮች ተጠርተዋል። ቢንጎ ካለዎት አሁን ይጠይቁ።',
+  noWinnerRefunded: 'አሸናፊ የለም። የመግቢያ ክፍያ ተመልሷል፦',
+  atLeast2Players: 'ቢያንስ 2 ተጫዋቾች ያስፈልጋሉ።',
 };
 
 export function t(key) { return strings[key] || key; }

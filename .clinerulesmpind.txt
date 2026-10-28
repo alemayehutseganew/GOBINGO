@@ -1,0 +1,44 @@
+﻿
+backend\src\socket\gameHandler.js:195:async function 
+startRoomGame(io, roomId) {
+backend\src\socket\gameHandler.js:206:      const 
+participants = await trx('room_participants').where({ 
+room_id: roomId });
+backend\src\socket\gameHandler.js:207:      if 
+(participants.length < 1) throw new Error('Need players');
+backend\src\socket\gameHandler.js:229:      return { 
+room: updated, participants, pool, winningPatterns };
+backend\src\socket\gameHandler.js:278:        const 
+participant = await db('room_participants').where({ 
+room_id: roomId, user_id: user.id }).first();
+backend\src\socket\gameHandler.js:287:        const 
+participants = await db('room_participants').where({ 
+room_id: roomId });
+backend\src\socket\gameHandler.js:295:          
+participants: participants.map((p) => ({ user_id: 
+p.user_id })),
+backend\src\socket\gameHandler.js:297:        
+io.to(roomId).emit('player_joined', { userId: user.id, 
+count: participants.length });
+backend\src\socket\gameHandler.js:304:    
+socket.on('start_game', async ({ roomId }) => {
+backend\src\socket\gameHandler.js:308:        const 
+participant = await db('room_participants').where({ 
+room_id: roomId, user_id: user.id }).first();
+backend\src\socket\gameHandler.js:315:        const 
+result = await startRoomGame(io, roomId);
+backend\src\socket\gameHandler.js:341:        const 
+participant = await db('room_participants').where({ 
+room_id: roomId, user_id: user.id }).first();
+backend\src\socket\gameHandler.js:370:            const 
+lockedParticipant = await 
+trx('room_participants').where({ room_id: roomId, 
+user_id: user.id }).first();
+backend\src\socket\gameHandler.js:378:            await 
+trx('room_participants').where({ id: lockedParticipant.id 
+}).update({ is_winner: true });
+backend\src\socket\gameHandler.js:430:module.exports = { 
+setupSocket, activeGames, parseUser, recoverRunningGames, 
+startRoomGame };
+
+
