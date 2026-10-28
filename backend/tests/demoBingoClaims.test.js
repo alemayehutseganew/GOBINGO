@@ -2,6 +2,7 @@ process.env.DEMO_MODE = 'true';
 process.env.DEMO_INITIAL_BALANCE = '100';
 
 const http = require('http');
+const { v4: uuidv4 } = require('uuid');
 const { io: Client } = require('socket.io-client');
 const request = require('supertest');
 const app = require('../src/app');
@@ -29,10 +30,15 @@ describe('Demo Bingo claims', () => {
     await new Promise((resolve) => httpServer.listen(0, resolve));
     port = httpServer.address().port;
     await Promise.all(PLAYER_TG.map((tgId) => login(tgId)));
+    roomId = uuidv4();
+    await db('game_rooms').insert({ id: roomId, level: 1, entry_fee: 10, status: 'RUNNING', is_demo: true });
     const users = await db('users').whereIn('telegram_id', PLAYER_TG);
     const userByTg = Object.fromEntries(users.map((u) => [u.telegram_id, u]));
-    roomId = (await db('game_rooms').insert({ level: 1, entry_fee: 10, status: 'RUNNING', is_demo: true }).returning('id'))[0].id;
-    if (typeof roomId === 'object') roomId = roomId.id;
+
+
+
+
+
     for (const tgId of PLAYER_TG) {
       await db('room_participants').insert({ room_id: roomId, user_id: userByTg[tgId].id, card: JSON.stringify([[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 15], [16, 17, 18, 19, 20], [21, 22, 23, 24, 25]]) });
     }

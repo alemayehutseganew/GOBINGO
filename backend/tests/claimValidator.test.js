@@ -35,6 +35,7 @@ describe('Claim validator', () => {
     expect(res.valid).toBe(false);
   });
 });
+
 describe('Claim validator patterns and closing numbers', () => {
   const card = [
     [1, 2, 3, 4, 5],

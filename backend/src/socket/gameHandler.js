@@ -7,6 +7,7 @@ const {
   DEFAULT_ALLOWED_PATTERNS,
   isPatternSupported,
   normalizePattern,
+  validateCard,
 } = require('../utils/claimValidator');
 const { isDemoMode } = require('../config/env');
 const { processRoomPayout } = require('../services/payoutService');
