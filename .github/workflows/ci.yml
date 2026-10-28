@@ -71,6 +71,10 @@ jobs:
         env:
           VITE_API_URL: https://gobingo-backend.onrender.com
           VITE_BACKEND_URL: https://gobingo-backend.onrender.com
+      - name: Deploy to Vercel
+        run: vercel --prod -- token=$VERCEL_TOKEN
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
   docker:
     runs-on: ubuntu-latest
