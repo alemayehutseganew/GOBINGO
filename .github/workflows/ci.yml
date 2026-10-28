@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, release/phase3]
   pull_request:
 
 jobs:
@@ -34,6 +34,7 @@ jobs:
     env:
       NODE_ENV: test
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gobingo_test
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gobingo_test
       REDIS_URL: redis://localhost:6379
       JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci-jwt-secret-at-least-32-characters-long' }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || '' }}
@@ -68,7 +69,8 @@ jobs:
       - run: npm run build
         working-directory: frontend
         env:
-          VITE_API_URL: https://api.example.com
+          VITE_API_URL: https://gobingo-backend.onrender.com
+          VITE_BACKEND_URL: https://gobingo-backend.onrender.com
 
   docker:
     runs-on: ubuntu-latest
