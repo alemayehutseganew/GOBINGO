@@ -34,7 +34,10 @@ function getAllowedOrigins() {
   return [...new Set([...configured, ...DEFAULT_ALLOWED_ORIGINS])];
 }
 
-const allowedOrigins = getAllowedOrigins();
+const allowedOrigins = [
+  'http://localhost:5173',
+  process.env.FRONTEND_URL || 'https://gobingo-rho.vercel.app',
+];
 
 const corsOptions = {
   origin(origin, callback) {
