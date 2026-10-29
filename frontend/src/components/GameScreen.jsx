@@ -342,7 +342,16 @@ const GameScreen = ({
               />
             </div>
           ) : (
-            <div className="text-white text-lg font-bold animate-pulse">Loading Card...</div>
+            <div className="bg-[#2A4B6E] p-4 rounded-xl border-2 border-gray-400 w-64">
+           <div className="text-white text-center mb-2 font-bold">Card No. ?</div>
+           <div className="grid grid-cols-5 gap-1">
+             {Array.from({ length: 25 }, (_, i) => i + 1).map((n) => (
+               <div key={n} className="aspect-square bg-white text-black rounded flex items-center justify-center font-bold text-xs">
+                 {n === 13 ? 'F' : n}
+               </div>
+             ))}
+           </div>
+         </div>
           )}
         </div>
       </div>
