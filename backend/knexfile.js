@@ -17,6 +17,6 @@ module.exports = {
       }
     : databaseUrl,
   pool: { min: 2, max: 10 },
-  migrations: { tableName: 'knex_migrations', directory: './src/db/migrations' },
+  migrations: { directory: './migrations', disableMigrationsListValidation: true },
   seeds: { directory: './src/db/seeds' },
 };

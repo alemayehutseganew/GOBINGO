@@ -1,4 +1,4 @@
-const API_BASE = (import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api').replace(/\/$/, '');
 
 function headers(initData) {
   const h = { 'Content-Type': 'application/json' };
@@ -37,19 +37,19 @@ async function request(path, opts = {}) {
 }
 
 export const api = {
-  login: (initData, agentUsername) => request('/api/auth/login', { method: 'POST', body: JSON.stringify({ initData, agent_username: agentUsername }) }),
-  me: () => request('/api/auth/me'),
-  balance: () => request('/api/wallet/balance'),
-  deposit: (amount, returnUrl) => request('/api/wallet/deposit', { method: 'POST', body: JSON.stringify({ amount, return_url: returnUrl }) }),
-  ledger: () => request('/api/wallet/ledger'),
-  devTopup: () => request('/api/wallet/dev-topup', { method: 'POST' }),
-  joinRoom: (level) => request('/api/rooms/join', { method: 'POST', body: JSON.stringify({ level }) }),
-  telebirrDeposit: (amount, phoneNumber) => request('/api/telebirr/deposit', { method: 'POST', body: JSON.stringify({ amount, phoneNumber }) }),
-  rooms: () => request('/api/rooms'),
+  login: (initData, agentUsername) => request('/auth/login', { method: 'POST', body: JSON.stringify({ initData, agent_username: agentUsername }) }),
+  me: () => request('/auth/me'),
+  balance: () => request('/wallet/balance'),
+  deposit: (amount, returnUrl) => request('/wallet/deposit', { method: 'POST', body: JSON.stringify({ amount, return_url: returnUrl }) }),
+  ledger: () => request('/wallet/ledger'),
+  devTopup: () => request('/wallet/dev-topup', { method: 'POST' }),
+  joinRoom: (level) => request('/rooms/join', { method: 'POST', body: JSON.stringify({ level }) }),
+  telebirrDeposit: (amount, phoneNumber) => request('/telebirr/deposit', { method: 'POST', body: JSON.stringify({ amount, phoneNumber }) }),
+  rooms: () => request('/rooms'),
   roomCards: (roomId) => request(`/api/rooms/${encodeURIComponent(roomId)}/cards`),
-  initiatePayment: (amount) => request('/api/payments/initiate', { method: 'POST', body: JSON.stringify({ amount }) }),
-  verifyReceipt: (receiptNumber, amount) => request('/api/payments/verify-receipt', { method: 'POST', body: JSON.stringify({ receiptNumber, amount }) }),
-  verifyReceipt: (receiptNumber, amount) => request('/api/payments/verify-receipt', { method: 'POST', body: JSON.stringify({ receiptNumber, amount }) }),
+  initiatePayment: (amount) => request('/payments/initiate', { method: 'POST', body: JSON.stringify({ amount }) }),
+  verifyReceipt: (receiptNumber, amount) => request('/payments/verify-receipt', { method: 'POST', body: JSON.stringify({ receiptNumber, amount }) }),
+  verifyReceipt: (receiptNumber, amount) => request('/payments/verify-receipt', { method: 'POST', body: JSON.stringify({ receiptNumber, amount }) }),
   selectCard: (roomId, cardId) => request(`/api/rooms/${encodeURIComponent(roomId)}/cards/${cardId}`, { method: 'POST' }),
   releaseCard: (roomId, cardId) => request(`/api/rooms/${encodeURIComponent(roomId)}/cards/${cardId}`, { method: 'DELETE' }),
 };
