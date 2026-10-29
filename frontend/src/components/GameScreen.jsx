@@ -116,7 +116,7 @@ const GameScreen = ({
     const userId = currentUser?.id || currentUserId;
     if (!roomId || !userId) return;
     
-    fetch(`${API_URL}/api/rooms/${encodeURIComponent(roomId)}/my-cards?userId=${encodeURIComponent(userId)}`)
+    fetch(`${API_URL}/rooms/${encodeURIComponent(roomId)}/my-cards?userId=${encodeURIComponent(userId)}`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();
