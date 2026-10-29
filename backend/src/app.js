@@ -40,11 +40,12 @@ const allowedOrigins = [
 ];
 
 const corsOptions = {
-  origin(origin, callback) {
-    // Same-origin/server-to-server requests have no Origin header.
+  origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(null, false);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      return callback(new Error('CORS policy blocks this origin'), false);
+    }
+    return callback(null, true);
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-telegram-init-data', 'x-dev-user'],
