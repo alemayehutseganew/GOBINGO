@@ -6,12 +6,13 @@ const db = require('../src/db/knex');
 
 async function cleanDb() {
   assertSafeTestDatabase();
-  await db('financial_ledger').del();
-  await db('room_participants').del();
-  await db('game_rooms').del();
-  await db('deposits').del();
-  await db('agents').del();
-  await db('users').del();
+  const tables = ['financial_ledger', 'room_participants', 'game_rooms', 'deposits', 'agents', 'users'];
+  for (const table of tables) {
+    const exists = await db.schema.hasTable(table);
+    if (exists) {
+      await db(table).del();
+    }
+  }
 }
 
 async function createDevUser(tgId = 999001, balance = 100) {
