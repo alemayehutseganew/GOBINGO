@@ -85,6 +85,7 @@ export default function Game({ user, room, card, isDemo, onBack }) {
         setPatternTotalCount(s.participants.length);
       }
     });
+    const onPlayerJoined = guarded(({ count }) => setParticipants(count));
     const onPlayerPatternsUpdated = guarded(({ userId, patterns }) => {
       // Update participants' selected patterns
     });
