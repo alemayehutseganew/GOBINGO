@@ -108,6 +108,7 @@ const GameScreen = ({
   const [toast, setToast] = useState('');
   const [gameResult, setGameResult] = useState(null);
   const [showResult, setShowResult] = useState(false);
+  const API_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
   const [sound, setSound] = useState(soundOn);
 
   // Fetch Cards on Mount
@@ -115,7 +116,7 @@ const GameScreen = ({
     const userId = currentUser?.id || currentUserId;
     if (!roomId || !userId) return;
     
-    fetch(`http://localhost:3001/api/rooms/${encodeURIComponent(roomId)}/my-cards?userId=${encodeURIComponent(userId)}`)
+    fetch(`${API_URL}/api/rooms/${encodeURIComponent(roomId)}/my-cards?userId=${encodeURIComponent(userId)}`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();
