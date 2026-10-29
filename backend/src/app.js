@@ -34,23 +34,36 @@ function getAllowedOrigins() {
   return [...new Set([...configured, ...DEFAULT_ALLOWED_ORIGINS])];
 }
 
-function getAllowedOrigins() {
-  return [
-    'http://localhost:5173',
-    'https://gobingo-rho.vercel.app',
-    process.env.FRONTEND_URL
-  ].filter(Boolean);
-}
-
 app.use(helmet());
-app.use(cors({
-  origin: true,
-  credentials: true
-}));
-app.options('*', cors({
-  origin: true,
-  credentials: true
-}));
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl) or if it's in the allowed list
+    if (!origin) return callback(null, true);
+
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'https://gobingo-rho.vercel.app'
+    ];
+
+    // Fallback to allow env variable if set
+    if (process.env.CORS_ORIGINS) {
+      allowedOrigins.push(...process.env.CORS_ORIGINS.split(','));
+    }
+
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('Blocked by CORS:', origin);
+      callback(new Error('CORS policy blocks this origin'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-telegram-init-data']
+};
+
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '1mb' }));
 
 const globalLimiter = rateLimit({ windowMs: 60 * 1000, max: isProduction ? 300 : 1000, standardHeaders: true, legacyHeaders: false });

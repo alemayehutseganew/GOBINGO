@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { API_URL } from '../services/api.js';
+import api from '../services/api.js';
 import SocketService from '../services/socket.js';
 import GameResultModal from './GameResultModal.jsx';
 
@@ -116,19 +117,12 @@ const GameScreen = ({
     const userId = currentUser?.id || currentUserId;
     if (!roomId || !userId) return;
     
-    const url = `${API_URL}/api/rooms/${roomId}/my-cards?userId=${userId}`;
-    console.log('FETCHING CARDS FROM:', url);
-
-    fetch(url)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        return res.json();
-      })
-      .then((data) => {
-        console.log('Fetched cards from API:', data);
+    api.getMyCards(roomId, userId)
+      .then(data => {
+        console.log("Fetched cards from API:", data);
         if (data && data.cards) setCardsData(data.cards);
       })
-      .catch((err) => console.error('Failed to fetch cards:', err));
+      .catch(err => console.error("Failed to fetch cards:", err));
   }, [roomId, currentUser, currentUserId]);
 
   // Socket Listeners & Fake Game Trigger
