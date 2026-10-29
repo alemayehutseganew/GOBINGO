@@ -307,8 +307,9 @@ export default function Game({ user, room, card, isDemo, onBack }) {
             />
           </div>
         )}
-              <BingoCard card={selectedCards[0]?.card || cardState} drawn={drawn} />
-            )}
+              {Array.isArray(selectedCards[0]?.card || cardState) && (
+                <BingoCard card={selectedCards[0]?.card || cardState} drawn={drawn} />
+              )}
           </div>
         </div>
       )}
