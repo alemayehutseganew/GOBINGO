@@ -1,5 +1,5 @@
 import WebApp from '@twa-dev/sdk';
-import api from './api.js';
+import { API_URL } from './api.js';
 
 const DEV_USER = { id: 999001, first_name: 'Dev', username: 'devuser' };
 
@@ -10,7 +10,6 @@ const TelegramAuth = {
     if (initData) {
       try { localStorage.setItem('initData', initData); } catch (e) {}
     } else {
-      // dev fallback
       try { localStorage.setItem('devUser', JSON.stringify(DEV_USER)); } catch (e) {}
     }
   },
@@ -23,17 +22,25 @@ const TelegramAuth = {
   },
   async login() {
     const initData = this.initData();
-    try {
-      const data = await api.login(initData, null);
-      return data.user;
-    } catch (e) {
-      const status = e?.status;
-      const message = e?.message || '';
-      if (status === undefined || status >= 500 || /timed out/i.test(message)) {
-        throw new Error('Server temporarily unavailable, please try again');
-      }
-      throw new Error('Login failed');
+    if (!initData) {
+      console.error('No initData found. Are you running inside Telegram?');
+      throw new Error('Not in Telegram');
     }
+
+    const response = await fetch(`${API_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('Login failed:', data.error);
+      throw new Error(data.error || 'Login failed');
+    }
+
+    return data.user;
   },
 };
 
