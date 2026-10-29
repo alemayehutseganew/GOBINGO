@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { API_URL } from '../services/api.js';
 import SocketService from '../services/socket.js';
 import GameResultModal from './GameResultModal.jsx';
 
@@ -90,6 +91,7 @@ const GameScreen = ({
 
   const socket = socketProp || SocketService.get() || SocketService.connect();
   const [cardsData, setCardsData] = useState(cards || []);
+  const [sound, setSound] = useState(soundOn);
   
   // Top Bar State
   const [playersCount, setPlayersCount] = useState(0);
@@ -108,15 +110,13 @@ const GameScreen = ({
   const [toast, setToast] = useState('');
   const [gameResult, setGameResult] = useState(null);
   const [showResult, setShowResult] = useState(false);
-  const API_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
-  const [sound, setSound] = useState(soundOn);
 
   // Fetch Cards on Mount
   useEffect(() => {
     const userId = currentUser?.id || currentUserId;
     if (!roomId || !userId) return;
     
-    fetch(`${API_URL}/rooms/${encodeURIComponent(roomId)}/my-cards?userId=${encodeURIComponent(userId)}`)
+    fetch(`${API_URL}/api/rooms/${encodeURIComponent(roomId)}/my-cards?userId=${encodeURIComponent(userId)}`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();
