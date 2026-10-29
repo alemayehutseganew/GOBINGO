@@ -21,6 +21,14 @@ function isDemoMode() {
   return String(process.env.DEMO_MODE || '').trim().toLowerCase() === 'true';
 }
 
+function getMaxSelectablePatterns() {
+  const raw = process.env.MAX_SELECTABLE_PATTERNS;
+  if (raw === undefined || String(raw).trim() === '') return 0;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 0) return 0;
+  return value;
+}
+
 function getDemoInitialBalance() {
   const raw = process.env.DEMO_INITIAL_BALANCE;
   if (raw === undefined || String(raw).trim() === '') return 100;
@@ -93,4 +101,4 @@ function validateEnv() {
   }
 }
 
-module.exports = { validateEnv, getPaymentProvider, isDemoMode, getDemoInitialBalance };
+module.exports = { validateEnv, getPaymentProvider, isDemoMode, getDemoInitialBalance, getMaxSelectablePatterns };

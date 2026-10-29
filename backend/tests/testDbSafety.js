@@ -4,7 +4,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 function assertSafeTestDatabase() {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL;
 
   if (typeof databaseUrl !== 'string' || databaseUrl.trim() === '') {
     throw new Error('Unsafe test database: DATABASE_URL is required');

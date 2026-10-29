@@ -53,7 +53,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100">
-      <header className="flex items-center justify-between gap-2 bg-slate-800 p-3">
+      <header className="flex items-center justify-between gap-2 bg-slate-900 p-2">
         <div className="flex items-center gap-2">
           <h1 className="text-xl font-bold text-amber-400">GOBINGO</h1>
           {isDemo && <DemoBadge />}
@@ -66,7 +66,7 @@ export default function App() {
       <main className="mx-auto max-w-md p-3">
         {isDemo && <DemoBanner />}
         {page === 'lobby' && <Lobby user={user} isDemo={isDemo} onJoinRoom={(r, card) => { setActiveRoom({ room: r, card }); setPage('game'); }} />}
-        {page === 'game' && activeRoom && <Game user={user} room={activeRoom.room} card={activeRoom.card} isDemo={isDemo} onBack={() => setPage('lobby')} />}
+        {page === 'game' && activeRoom && activeRoom.room && <Game user={user} room={activeRoom.room} card={activeRoom.card} isDemo={isDemo} onBack={() => setPage('lobby')} />}
         {page === 'wallet' && <Wallet user={user} isDemo={isDemo} />}
       </main>
     </div>

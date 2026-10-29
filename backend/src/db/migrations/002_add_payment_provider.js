@@ -1,4 +1,4 @@
-﻿exports.up = async function (knex) {
+exports.up = async function (knex) {
   const hasProvider = await knex.schema.hasColumn('deposits', 'provider');
   if (!hasProvider) {
     await knex.schema.alterTable('deposits', (t) => {

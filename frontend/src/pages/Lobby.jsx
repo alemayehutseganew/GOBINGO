@@ -51,6 +51,7 @@ export default function Lobby({ user, isDemo, onJoinRoom }) {
     setJoiningLevel(level);
     try {
       const res = await api.joinRoom(level);
+      if (!res || !res.room) throw new Error('Invalid room response');
       SocketService.connect();
       await refreshBalance();
       onJoinRoom(res.room, res.card);
