@@ -30,6 +30,7 @@ export default function Wallet({ user, isDemo }) {
   const [ledgerLoading, setLedgerLoading] = useState(true);
   const [ledgerError, setLedgerError] = useState('');
   const [amount, setAmount] = useState('');
+const [receiptNumber, setReceiptNumber] = useState('');
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -93,6 +94,52 @@ export default function Wallet({ user, isDemo }) {
     }
   };
 
+  const topUp = async () => {
+    if (isDemo) return;
+    const a = Number(amount);
+    if (!a || a <= 0) {
+      setMsg(t('error'));
+      return;
+    }
+    setLoading(true);
+    setMsg('');
+    try {
+      const res = await api.initiatePayment(a);
+      if (res?.checkoutUrl) {
+        window.location.href = res.checkoutUrl;
+      } else {
+        setMsg('No checkout URL returned.');
+      }
+    } catch (e) {
+      setMsg(e?.message || t('error'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyReceipt = async () => {
+    if (isDemo) return;
+    if (!receiptNumber.trim()) {
+      setMsg(t('error'));
+      return;
+    }
+    setVerifying(true);
+    setMsg('');
+    try {
+      const res = await api.verifyReceipt(receiptNumber.trim(), Number(amount) || undefined);
+      if (res?.success) {
+        setMsg('Verification successful.');
+        await refresh();
+      } else {
+        setMsg(res?.message || 'Verification failed');
+      }
+    } catch (e) {
+      setMsg(e?.message || t('error'));
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-md space-y-4">
       <div className="rounded bg-slate-800 p-4">
@@ -125,12 +172,28 @@ export default function Wallet({ user, isDemo }) {
             className="mb-3 w-full rounded bg-slate-700 p-2"
           />
           <button
-            onClick={deposit}
+            onClick={topUp}
             disabled={loading}
             className="w-full rounded bg-amber-500 py-2 font-bold text-slate-900 disabled:opacity-60"
           >
-            {loading ? '...' : t('confirm')}
+            {loading ? '...' : 'Top Up'}
           </button>
+          <div className="mt-3">
+            <input
+              type="text"
+              value={receiptNumber}
+              onChange={(e) => setReceiptNumber(e.target.value)}
+              placeholder="Telebirr receipt number"
+              className="mb-2 w-full rounded bg-slate-700 p-2"
+            />
+            <button
+              onClick={verifyReceipt}
+              disabled={verifying}
+              className="w-full rounded bg-slate-600 py-2 font-bold text-white disabled:opacity-60"
+            >
+              {verifying ? '...' : 'Verify'}
+            </button>
+          </div>
           {msg && <div className="mt-3 text-center text-amber-300">{msg}</div>}
         </div>
       )}

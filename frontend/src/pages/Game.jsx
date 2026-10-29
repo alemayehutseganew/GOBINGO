@@ -26,6 +26,8 @@ export default function Game({ user, room, card, isDemo, onBack }) {
   const [patternTotalCount, setPatternTotalCount] = useState(0);
   const [patternError, setPatternError] = useState('');
   const [selectedCards, setSelectedCards] = useState([]);
+const [markedNumbers, setMarkedNumbers] = useState([]);
+const [chosenPattern, setChosenPattern] = useState('ROW_0');
   const socket = SocketService.get();
   const roomIdRef = useRef(room.id);
   const isMountedRef = useRef(true);
@@ -33,9 +35,13 @@ export default function Game({ user, room, card, isDemo, onBack }) {
   const claimTimeoutRef = useRef(null);
   const claimMsgTimeoutRef = useRef(null);
 
-  useEffect(() => {
+useEffect(() => {
     setCardState(card);
   }, [card]);
+
+  useEffect(() => {
+    if (status === 'RUNNING') setMarkedNumbers([]);
+  }, [status]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -214,10 +220,18 @@ export default function Game({ user, room, card, isDemo, onBack }) {
     }, 3000);
   };
 
+const toggleMark = (value) => {
+    if (!value || value === 0) return;
+    if (!drawn.includes(value)) return;
+    setMarkedNumbers((prev) =>
+      prev.includes(value) ? prev.filter((n) => n !== value) : [...prev, value]
+    );
+  };
+
   const claim = () => {
     if (claiming || status !== 'RUNNING' || !connected) return;
     setClaiming(true);
-    socket.emit('claim_bingo', { roomId: room.id });
+    socket.emit('claim_bingo', { roomId: room.id, markedNumbers, claimedPattern: chosenPattern });
     if (claimTimeoutRef.current) clearTimeout(claimTimeoutRef.current);
     claimTimeoutRef.current = window.setTimeout(() => {
       if (isMountedRef.current && roomIdRef.current === room.id) setClaiming(false);
@@ -308,7 +322,7 @@ export default function Game({ user, room, card, isDemo, onBack }) {
               </div>
             </div>
             {Array.isArray(selectedCards[0]?.card || cardState) && (
-              <BingoCard card={selectedCards[0]?.card || cardState} drawn={drawn} />
+              <BingoCard card={selectedCards[0]?.card || cardState} marked={markedNumbers} onCellClick={toggleMark} />
             )}
           </div>
         </div>
@@ -330,13 +344,24 @@ export default function Game({ user, room, card, isDemo, onBack }) {
           </div>
         )}
         {status === 'RUNNING' && (
-          <button
-            onClick={claim}
-            disabled={claiming || !connected}
-            className="flex-1 rounded bg-amber-500 py-2 font-bold text-slate-900 disabled:opacity-60"
-          >
-            {claiming ? '...' : t('claimBingo')}
-          </button>
+          <div className="flex flex-1 gap-2">
+            <select
+              value={chosenPattern}
+              onChange={(e) => setChosenPattern(e.target.value)}
+              className="rounded bg-slate-700 px-2 py-2 text-sm text-slate-100"
+            >
+              {(availablePatterns.length ? availablePatterns : ['ROW_0', 'COL_0', 'DIAG_MAIN', 'DIAG_ANTI', 'FOUR_CORNERS']).map((pattern) => (
+                <option key={pattern} value={pattern}>{pattern}</option>
+              ))}
+            </select>
+            <button
+              onClick={claim}
+              disabled={claiming || !connected}
+              className="flex-1 rounded bg-amber-500 py-2 font-bold text-slate-900 disabled:opacity-60"
+            >
+              {claiming ? '...' : 'Bingo'}
+            </button>
+          </div>
         )}
       </div>
 

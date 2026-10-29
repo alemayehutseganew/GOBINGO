@@ -13,7 +13,7 @@ const SocketService = {
     const auth = {};
     if (initData) auth.initData = initData;
     if (devUser && !initData) auth.devUser = devUser;
-    socket = io(url, { auth, transports: ['websocket', 'polling'] });
+    socket = io(url, { auth, transports: ['websocket', 'polling'], withCredentials: true });
     return socket;
   },
   get() { return socket; },

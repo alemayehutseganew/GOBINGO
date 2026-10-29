@@ -1,5 +1,6 @@
 const db = require('../db/knex');
-const { calculatePayout, MIN_PLAYERS } = require('./payoutCalc');
+const { calculatePayout } = require('./payoutCalc');
+const MIN_PLAYERS = 2;
 const { MAX_PLAYERS } = require('../config/gameLimits');
 
 function toCents(value) {
@@ -35,12 +36,12 @@ async function processRoomPayout(dbConn, roomId, winnerUserId, options = {}) {
     }
 
     const entryFeeCents = toCents(room.entry_fee);
-    const payout = calculatePayout(participants.length, entryFeeCents);
-    const totalPoolCents = payout.totalPoolCents;
-    const winnerPrizeCents = payout.winnerPrizeCents;
+    const totalPoolCents = participants.length * entryFeeCents;
+    const payout = calculatePayout(totalPoolCents, 100 / 6, 1);
+    const winnerPrizeCents = payout.totalWinnerPoolCents;
     const platformGrossCents = payout.platformGrossCents;
-    const referralCommissionCents = payout.referralCommissionCents;
-    const platformNetCents = payout.platformNetCents;
+    const referralCommissionCents = Math.round((platformGrossCents * 1000) / 10000);
+    const platformNetCents = platformGrossCents - referralCommissionCents;
 
     const isDemo = Boolean(room.is_demo);
     const balanceField = isDemo ? 'demo_wallet_balance' : 'wallet_balance';

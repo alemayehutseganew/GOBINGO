@@ -101,7 +101,7 @@ export default function CardSelectionBoard({ roomId, socket, onSelectionChange }
         <div className="grid grid-cols-10 gap-1 sm:grid-cols-12">
           {(board?.cards || []).map((item) => {
             const selected = item.status === 'selected';
-            const reserved = item.status === 'reserved';
+            const reserved = item.status === 'reserved' || item.status === 'taken';
             const disabled = reserved || (!selected && (atLimit || !registrationOpen));
             return (
               <button

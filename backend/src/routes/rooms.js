@@ -4,10 +4,11 @@ const router = express.Router();
 const crypto = require('crypto');
 const db = require('../db/knex');
 const { telegramAuthMiddleware } = require('../middleware/telegramAuth');
-const { generateCard } = require('../utils/bingoCard');
+const { generateSingleCard } = require('../game/cardGenerator');
 const { isDemoMode } = require('../config/env');
-const { DEFAULT_GAME_PATTERNS } = require('../utils/claimValidator');
+const { DEFAULT_GAME_PATTERNS } = require('../game/ethioValidator');
 const MAX_CARDS_PER_PLAYER = 2;
+const CARD_POOL_SIZE = 400;
 const REGISTRATION_DURATION_MS = Number(process.env.REGISTRATION_DURATION_MS || 30000);
 
 const limiter = rateLimit({ windowMs: 60 * 1000, max: process.env.NODE_ENV === 'test' ? 10000 : 40, standardHeaders: true, legacyHeaders: false });
@@ -46,7 +47,8 @@ router.post('/join', telegramAuthMiddleware, async (req, res) => {
           if (Number(countRow.c) >= MAX_PLAYERS) room = null;
         }
         if (!room) {
-          const [created] = await trx('game_rooms').insert({ id: crypto.randomUUID(), level, entry_fee: entryFee, status: 'WAITING', is_demo: demoMode, registration_ends_at: new Date(Date.now() + REGISTRATION_DURATION_MS), winning_patterns: JSON.stringify(DEFAULT_GAME_PATTERNS) }).returning('*');
+          const cardPool = Array.from({ length: CARD_POOL_SIZE }, (_, index) => index + 1);
+          const [created] = await trx('game_rooms').insert({ id: crypto.randomUUID(), level, entry_fee: entryFee, status: 'WAITING', is_demo: demoMode, registration_ends_at: new Date(Date.now() + REGISTRATION_DURATION_MS), card_pool: JSON.stringify(cardPool), winning_patterns: JSON.stringify(DEFAULT_GAME_PATTERNS) }).returning('*');
           room = created;
         }
 
@@ -103,12 +105,14 @@ router.get('/:id/cards', telegramAuthMiddleware, async (req, res) => {
 
     const selections = await db('room_card_selections').where({ room_id: room.id });
     const ownerByCard = new Map(selections.map((row) => [row.card_id, row.user_id]));
-    const cards = Array.from({ length: 600 }, (_, index) => {
-      const cardId = index + 1;
+    const cardPool = Array.isArray(room.card_pool)
+      ? room.card_pool
+      : Array.from({ length: CARD_POOL_SIZE }, (_, index) => index + 1);
+    const cards = cardPool.map((cardId) => {
       const ownerId = ownerByCard.get(cardId);
       let status = 'available';
       if (ownerId === user.id) status = 'selected';
-      else if (ownerId !== undefined) status = 'reserved';
+      else if (ownerId !== undefined) status = 'taken';
       return { cardId, status };
     });
 
@@ -134,7 +138,7 @@ router.get('/:id/cards', telegramAuthMiddleware, async (req, res) => {
 router.post('/:id/cards/:cardId', telegramAuthMiddleware, async (req, res) => {
   try {
     const cardId = Number(req.params.cardId);
-    if (!Number.isInteger(cardId) || cardId < 1 || cardId > 600) {
+    if (!Number.isInteger(cardId) || cardId < 1 || cardId > CARD_POOL_SIZE) {
       return res.status(400).json({ error: 'Invalid card ID' });
     }
 
@@ -156,7 +160,7 @@ router.post('/:id/cards/:cardId', telegramAuthMiddleware, async (req, res) => {
         return { cardId, card: existing.card };
       }
 
-      const card = generateCard();
+      const card = generateSingleCard();
       try {
         await trx('room_card_selections').insert({
           room_id: room.id,
@@ -186,7 +190,7 @@ router.post('/:id/cards/:cardId', telegramAuthMiddleware, async (req, res) => {
 router.delete('/:id/cards/:cardId', telegramAuthMiddleware, async (req, res) => {
   try {
     const cardId = Number(req.params.cardId);
-    if (!Number.isInteger(cardId) || cardId < 1 || cardId > 600) {
+    if (!Number.isInteger(cardId) || cardId < 1 || cardId > CARD_POOL_SIZE) {
       return res.status(400).json({ error: 'Invalid card ID' });
     }
 
@@ -216,7 +220,7 @@ router.delete('/:id/cards/:cardId', telegramAuthMiddleware, async (req, res) => 
 
 router.recoverRegistrations = recoverRegistrations;
 
-const { startRoomGame } = require('../socket/gameHandler');
+const { rooms, startRoomGame } = require('../sockets/gameHandler');
 
 const registrationTimers = new Map();
 
@@ -274,6 +278,25 @@ function recoverRegistrations(io) {
     });
 }
 
-router.recoverRegistrations = recoverRegistrations;
+// GET /api/rooms/:roomId/my-cards
+router.get('/:roomId/my-cards', async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { userId } = req.query;
+    if (!roomId || !userId) {
+      return res.status(400).json({ error: 'roomId and userId are required' });
+    }
 
+    const selections = await db('room_card_selections').where({ room_id: roomId, user_id: userId });
+    const cards = selections.map((selection) => ({
+      id: selection.card_id,
+      matrix: selection.card,
+    }));
+
+    return res.json({ cards });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Failed to fetch cards' });
+  }
+});
 module.exports = router;

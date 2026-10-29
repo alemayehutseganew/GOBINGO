@@ -23,11 +23,18 @@ function createBot(token) {
   if (!isBotConfigured(t)) return null;
   const mod = loadTelegraf();
   if (!mod || !mod.Telegraf) return null;
-  const bot = new mod.Telegraf(t);
+  const https = require('https');
+  const agent = new https.Agent({ family: 4 });
+  const bot = new mod.Telegraf(t, {
+    telegram: { agent },
+  });
   try {
     const { registerHandlers } = require('./handlers');
     registerHandlers(bot);
   } catch (e) {}
+  bot.catch((err) => {
+    console.warn('[TELEGRAM] Bot error:', err && err.message ? err.message : err);
+  });
   return bot;
 }
 

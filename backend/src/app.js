@@ -72,7 +72,7 @@ app.get('/ready', async (req, res) => {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/wallet', require('./routes/wallet'));
 app.use('/api/rooms', require('./routes/rooms'));
-app.use('/api/telebirr', require('./routes/telebirr'));
+app.use('/api/payments', require('./payments/paymentRoutes'));
 
 // Telegram bot webhook endpoint (only registered when a real bot token is configured).
 try {

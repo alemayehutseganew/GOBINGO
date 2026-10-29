@@ -5,9 +5,13 @@ import api from './services/api.js';
 import Lobby from './pages/Lobby.jsx';
 import Game from './pages/Game.jsx';
 import Wallet from './pages/Wallet.jsx';
+import MockTelebirrCheckout from './pages/MockTelebirrCheckout.jsx';
 import { t } from './i18n/am.js';
 import DemoBadge from './components/DemoBadge.jsx';
 import DemoBanner from './components/DemoBanner.jsx';
+import MobileLayout from './components/layout/MobileLayout.jsx';
+import GameScreen from './components/GameScreen.jsx';
+import CardSelection from './components/CardSelection.jsx';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -51,25 +55,31 @@ export default function App() {
     return <div className="flex min-h-screen items-center justify-center">{t('loading')}</div>;
   }
 
+  if (window.location.pathname.includes('mock-telebirr-checkout')) {
+    return <MockTelebirrCheckout />;
+  }
+
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100">
-      <header className="flex items-center justify-between gap-2 bg-slate-900 p-2">
-        <div className="flex items-center gap-2">
-          <h1 className="text-xl font-bold text-amber-400">GOBINGO</h1>
-          {isDemo && <DemoBadge />}
-        </div>
-        <nav className="flex gap-2">
-          <button onClick={() => setPage('lobby')} className="rounded bg-slate-700 px-3 py-1">{t('lobby')}</button>
-          <button onClick={() => setPage('wallet')} className="rounded bg-slate-700 px-3 py-1">{t('wallet')}</button>
-        </nav>
-      </header>
-      <main className="mx-auto max-w-md p-3">
-        {isDemo && <DemoBanner />}
-        {page === 'lobby' && <Lobby user={user} isDemo={isDemo} onJoinRoom={(r, card) => { setActiveRoom({ room: r, card }); setPage('game'); }} />}
-        {page === 'game' && activeRoom && activeRoom.room && <Game user={user} room={activeRoom.room} card={activeRoom.card} isDemo={isDemo} onBack={() => setPage('lobby')} />}
-        {page === 'wallet' && <Wallet user={user} isDemo={isDemo} />}
-      </main>
-    </div>
+    <MobileLayout>
+      <div className="min-h-screen bg-slate-900 text-slate-100">
+        <header className="flex items-center justify-between gap-2 bg-slate-900 p-2">
+          <div className="flex items-center gap-2">
+            {isDemo && <DemoBadge />}
+          </div>
+          <nav className="flex gap-2">
+            <button onClick={() => setPage('lobby')} className="rounded bg-slate-700 px-3 py-1">{t('lobby')}</button>
+            <button onClick={() => setPage('wallet')} className="rounded bg-slate-700 px-3 py-1">{t('wallet')}</button>
+          </nav>
+        </header>
+        <main className="mx-auto max-w-md p-3">
+          {isDemo && <DemoBanner />}
+          {page === 'lobby' && <Lobby user={user} isDemo={isDemo} onJoinRoom={(r, card) => { setActiveRoom({ room: r, card }); setPage('select-cards'); }} />}
+          {page === 'select-cards' && activeRoom && <CardSelection socket={SocketService.get() || SocketService.connect()} currentUser={user} walletBalance={0} roomId={activeRoom?.room?.id} onConfirm={() => setPage('game')} />}
+          {page === 'game' && activeRoom && activeRoom.room && <GameScreen user={user} currentUser={user} room={activeRoom.room} roomId={activeRoom.room.id} cards={[activeRoom.card]} isDemo={isDemo} onBack={() => setPage('lobby')} />}
+          {page === 'wallet' && <Wallet user={user} isDemo={isDemo} />}
+        </main>
+      </div>
+    </MobileLayout>
   );
 }
 

@@ -94,37 +94,31 @@ function validateTelegramInitData(initData, botToken) {
   return { ok: true, reason: null, user };
 }
 
-function telegramAuthMiddleware(req, res, next) {
+async function telegramAuthMiddleware(req, res, next) {
+  const isDev = process.env.NODE_ENV === 'development';
+
+  if (isDev) {
+    const devUserHeader = req.headers['x-dev-user'];
+    let parsed = null;
+    if (devUserHeader) {
+      try {
+        parsed = JSON.parse(devUserHeader);
+      } catch (e) {}
+    }
+    if (!parsed || parsed.id === undefined || parsed.id === null) {
+      parsed = { id: 999001, first_name: 'Dev', username: 'devuser' };
+    }
+    req.tgUser = parsed;
+    return next();
+  }
+
   const initData = req.headers['x-telegram-init-data'] || req.body?.initData || req.query?.initData;
   const botToken = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
   const isProduction = process.env.NODE_ENV === 'production';
 
-  // Dev bypass is never allowed in production
-  if (!isProduction && (!botToken || botToken === 'your-telegram-bot-token')) {
-    const devUser = req.headers['x-dev-user'];
-    if (devUser) {
-      try {
-        const parsed = JSON.parse(devUser);
-        if (parsed && parsed.id !== undefined && parsed.id !== null) {
-          req.tgUser = parsed;
-          return next();
-        }
-      } catch (e) {}
-    }
-    if (initData) {
-      const params = parseInitData(initData);
-      const u = params ? params.get('user') : null;
-      if (u) {
-        try {
-          const parsed = JSON.parse(u);
-          if (parsed && parsed.id !== undefined && parsed.id !== null) {
-            req.tgUser = parsed;
-            return next();
-          }
-        } catch (e) {}
-      }
-    }
-    return res.status(401).json({ error: 'Unauthorized' });
+  // ... existing real validation ...
+  if (!botToken || botToken === 'your-telegram-bot-token') {
+    // no token configured; allow x-dev-user fallback handled above not needed
   }
 
   const result = validateTelegramInitData(initData, botToken);

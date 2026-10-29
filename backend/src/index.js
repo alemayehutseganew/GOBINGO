@@ -3,7 +3,9 @@ const { validateEnv } = require('./config/env');
 validateEnv();
 const http = require('http');
 const roomsRoute = require('./routes/rooms');
-const { setupSocket, recoverRunningGames } = require('./socket/gameHandler');
+const { setupSocket, recoverRunningGames, startGame, startCountdown } = require('./sockets/gameHandler');
+const { validateBingo } = require('./game/ethioValidator');
+const { calculatePayout } = require('./game/jackpotSplitter');
 const { setupSocketRedis } = require('./sockets/redisAdapter');
 
 const app = require('./app');

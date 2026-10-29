@@ -5,7 +5,7 @@ const db = require('../db/knex');
 const { telegramAuthMiddleware } = require('../middleware/telegramAuth');
 const { isDemoMode } = require('../config/env');
 
-const telebirr = require('../services/telebirrService');
+const telebirr = require('../payments/telebirrService');
 const limiter = rateLimit({ windowMs: 60 * 1000, max: process.env.NODE_ENV === 'test' ? 10000 : 30, standardHeaders: true, legacyHeaders: false });
 router.use(limiter);
 
@@ -52,7 +52,33 @@ router.post('/deposit', telegramAuthMiddleware, async (req, res) => {
   }
 });
 
+router.post('/dev-topup', telegramAuthMiddleware, async (req, res) => {
+  try {
+    const user = await db('users').where({ telegram_id: req.tgUser.id }).first();
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const isDemo = isDemoMode();
+    const balanceField = isDemo ? 'demo_wallet_balance' : 'wallet_balance';
+    const amount = 100;
+
+    await db('users').where({ id: user.id }).increment(balanceField, amount);
+    await db('financial_ledger').insert({
+      user_id: user.id,
+      amount,
+      type: isDemo ? 'DEMO_CREDIT_GRANT' : 'DEPOSIT',
+      reference_id: `DEV_TOPUP_${Date.now()}`,
+      is_demo: isDemo,
+    });
+
+    const updated = await db('users').where({ id: user.id }).first();
+    res.json({ success: true, newBalance: Number(updated[balanceField]) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Dev top-up failed' });
+  }
+});
 router.get('/ledger', telegramAuthMiddleware, async (req, res) => {
+
   try {
     const user = await db('users').where({ telegram_id: req.tgUser.id }).first();
     if (!user) return res.status(404).json({ error: 'User not found' });
