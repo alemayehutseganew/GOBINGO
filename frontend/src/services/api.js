@@ -1,4 +1,4 @@
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+export const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/api\/?$/, '').replace(/\/$/, '');
 
 function headers(initData) {
   const h = { 'Content-Type': 'application/json' };
