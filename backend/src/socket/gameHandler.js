@@ -138,44 +138,6 @@ function validatePatternSelection(patterns, availablePatterns) {
   }
   return { valid: true, error: null, patterns: normalized };
 }
-function getSelectedPatterns(participant) {
-  if (!participant) return [];
-  return normalizeAllowedPatterns(participant.selected_patterns);
-}
-
-function validatePatternSelection(patterns, availablePatterns) {
-  const available = normalizeAllowedPatterns(availablePatterns);
-  if (!Array.isArray(patterns)) {
-    return { valid: false, error: 'Selection must be an array', patterns: [] };
-  }
-  if (patterns.length === 0) {
-    return { valid: false, error: 'At least one pattern must be selected', patterns: [] };
-  }
-  const maxSelectable = Number(process.env.MAX_SELECTABLE_PATTERNS || 0);
-  if (maxSelectable > 0 && patterns.length > maxSelectable) {
-    return { valid: false, error: `Maximum ${maxSelectable} patterns allowed`, patterns: [] };
-  }
-  const normalized = [];
-  const seen = new Set();
-  for (const pattern of patterns) {
-    const canonical = normalizePattern(pattern);
-    if (!canonical || !isPatternSupported(canonical)) {
-      return { valid: false, error: `Unknown pattern: ${pattern}`, patterns: [] };
-    }
-    if (!available.includes(canonical)) {
-      return { valid: false, error: `Pattern not available: ${canonical}`, patterns: [] };
-    }
-    if (!seen.has(canonical)) {
-      seen.add(canonical);
-      normalized.push(canonical);
-    }
-  }
-  if (normalized.length === 0) {
-    return { valid: false, error: 'At least one pattern must be selected', patterns: [] };
-  }
-  return { valid: true, error: null, patterns: normalized };
-}
-
 async function consumeNextDraw(roomId) {
   return db.transaction(async (trx) => {
     const room = await trx('game_rooms').where({ id: roomId }).forUpdate().first();
