@@ -39,6 +39,12 @@ function PatternPreview({ pattern }) {
 
 export default function PatternPicker({ availablePatterns, selectedPatterns, onSelectionChange, disabled }) {
   const [local, setLocal] = useState(selectedPatterns || []);
+  // Normalize availablePatterns - handle string or array
+  const patterns = Array.isArray(availablePatterns) && availablePatterns.length > 0
+    ? availablePatterns
+    : (typeof availablePatterns === 'string' ? (() => { try { return JSON.parse(availablePatterns); } catch { return []; } })() : []);
+  // Fallback to default patterns if none available
+  const displayPatterns = patterns.length > 0 ? patterns : ['ROW_0', 'ROW_1', 'ROW_2', 'ROW_3', 'ROW_4', 'COL_0', 'COL_1', 'COL_2', 'COL_3', 'COL_4', 'DIAG_MAIN', 'DIAG_ANTI', 'FOUR_CORNERS', 'FULL_HOUSE'];
 
   const toggle = (pattern) => {
     if (disabled) return;
@@ -56,7 +62,7 @@ export default function PatternPicker({ availablePatterns, selectedPatterns, onS
         <span className="text-xs text-slate-300">{local.length} selected</span>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {(availablePatterns || []).map((pattern) => {
+        {(displayPatterns || []).map((pattern) => {
           const selected = local.includes(pattern);
           return (
             <button

@@ -76,7 +76,10 @@ export default function Game({ user, room, card, isDemo, onBack }) {
       if (Array.isArray(s.participants)) setParticipants(s.participants.length);
       if (s.card) setCardState(s.card);
       if (Array.isArray(s.selectedCards)) setSelectedCards(s.selectedCards);
-      if (Array.isArray(s.availablePatterns)) setAvailablePatterns(s.availablePatterns);
+      if (Array.isArray(s.availablePatterns) && s.availablePatterns.length > 0) setAvailablePatterns(s.availablePatterns);
+      else if (Array.isArray(s.winningPatterns)) setAvailablePatterns(s.winningPatterns);
+      else if (Array.isArray(s.room?.winning_patterns)) setAvailablePatterns(s.room.winning_patterns);
+      else setAvailablePatterns(['ROW_0', 'ROW_1', 'ROW_2', 'ROW_3', 'ROW_4', 'COL_0', 'COL_1', 'COL_2', 'COL_3', 'COL_4', 'DIAG_MAIN', 'DIAG_ANTI', 'FOUR_CORNERS', 'FULL_HOUSE']);
       if (Array.isArray(s.selectedPatterns)) setSelectedPatterns(s.selectedPatterns);
       if (s.participants && Array.isArray(s.participants)) {
         const ready = s.participants.filter((p) => Array.isArray(p.selectedPatterns) && p.selectedPatterns.length > 0).length;
