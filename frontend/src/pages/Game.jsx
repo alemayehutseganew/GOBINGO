@@ -26,7 +26,6 @@ export default function Game({ user, room, card, isDemo, onBack }) {
   const [patternTotalCount, setPatternTotalCount] = useState(0);
   const [patternError, setPatternError] = useState('');
   const [selectedCards, setSelectedCards] = useState([]);
-
   const socket = SocketService.get();
   const roomIdRef = useRef(room.id);
   const isMountedRef = useRef(true);
@@ -87,7 +86,7 @@ export default function Game({ user, room, card, isDemo, onBack }) {
     });
     const onPlayerJoined = guarded(({ count }) => setParticipants(count));
     const onPlayerPatternsUpdated = guarded(({ userId, patterns }) => {
-      // Update participants' selected patterns
+      // Update participants' selected patterns (handled by room_state refresh)
     });
     const onPatternSelectionStatus = guarded(({ ready, total }) => {
       setPatternReadyCount(ready);
@@ -99,8 +98,6 @@ export default function Game({ user, room, card, isDemo, onBack }) {
         setPatternError('');
       } else {
         setPatternError(result?.error || 'Selection failed');
-        // Restore last confirmed selection by re-requesting room state
-        socket.emit('join_room', { roomId: currentRoomId });
       }
     });
     const onGameStarted = guarded(({ roomId } = {}) => {
@@ -200,11 +197,11 @@ export default function Game({ user, room, card, isDemo, onBack }) {
     if (!socket || !connected) return;
     socket.emit('select_patterns', { roomId: room.id, patterns });
   };
-
   const handlePatternChange = (patterns) => {
     setSelectedPatterns(patterns);
     savePatterns(patterns);
   };
+  const startGame = () => {
     if (starting || status !== 'WAITING' || !connected) return;
     setStarting(true);
     socket.emit('start_game', { roomId: room.id });
@@ -248,7 +245,7 @@ export default function Game({ user, room, card, isDemo, onBack }) {
       </section>
       <div className="mb-3 flex items-center justify-between">
         <button onClick={onBack} className="text-amber-400">{t('back')}</button>
-        <span className="text-sm text-slate-400">{t('room')}: {String(room?.id || '').slice(0, 8)}</span>
+        <span className="text-sm text-slate-400">{t('room')}: {room.id.slice(0, 8)}</span>
       </div>
 
       <div className="mb-3 rounded bg-slate-800 p-3 text-center">
@@ -270,7 +267,18 @@ export default function Game({ user, room, card, isDemo, onBack }) {
       </div>
 
       {status === 'WAITING' ? (
-        <CardSelectionBoard roomId={room.id} socket={socket} onSelectionChange={setSelectedCards} />
+        <div className="space-y-3">
+          <CardSelectionBoard roomId={room.id} socket={socket} onSelectionChange={setSelectedCards} />
+          <div className="space-y-3">
+            {patternError && <div className="rounded bg-red-900/40 p-2 text-xs text-red-200">{patternError}</div>}
+            <PatternPicker
+              availablePatterns={availablePatterns}
+              selectedPatterns={selectedPatterns}
+              onSelectionChange={handlePatternChange}
+              disabled={status !== 'WAITING'}
+            />
+          </div>
+        </div>
       ) : (
         <div className="grid gap-3 lg:grid-cols-[minmax(220px,260px)_minmax(0,1fr)]">
           <NumberChart drawn={drawn} latest={lastNumber} />
@@ -296,20 +304,9 @@ export default function Game({ user, room, card, isDemo, onBack }) {
                 </div>
               </div>
             </div>
-            {status === 'WAITING' && (
-          <div className="space-y-3">
-            {patternError && <div className="rounded bg-red-900/40 p-2 text-xs text-red-200">{patternError}</div>}
-            <PatternPicker
-              availablePatterns={availablePatterns}
-              selectedPatterns={selectedPatterns}
-              onSelectionChange={handlePatternChange}
-              disabled={status !== 'WAITING'}
-            />
-          </div>
-        )}
-              {Array.isArray(selectedCards[0]?.card || cardState) && (
-                <BingoCard card={selectedCards[0]?.card || cardState} drawn={drawn} />
-              )}
+            {Array.isArray(selectedCards[0]?.card || cardState) && (
+              <BingoCard card={selectedCards[0]?.card || cardState} drawn={drawn} />
+            )}
           </div>
         </div>
       )}
