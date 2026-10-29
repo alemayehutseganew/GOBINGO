@@ -116,14 +116,17 @@ const GameScreen = ({
     const userId = currentUser?.id || currentUserId;
     if (!roomId || !userId) return;
     
-    fetch(`${API_URL}/api/rooms/${encodeURIComponent(roomId)}/my-cards?userId=${encodeURIComponent(userId)}`)
+    const url = `${API_URL}/api/rooms/${roomId}/my-cards?userId=${userId}`;
+    console.log('FETCHING CARDS FROM:', url);
+
+    fetch(url)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();
       })
       .then((data) => {
         console.log('Fetched cards from API:', data);
-        if (Array.isArray(data?.cards)) setCardsData(data.cards);
+        if (data && data.cards) setCardsData(data.cards);
       })
       .catch((err) => console.error('Failed to fetch cards:', err));
   }, [roomId, currentUser, currentUserId]);

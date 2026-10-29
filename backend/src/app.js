@@ -42,25 +42,15 @@ function getAllowedOrigins() {
   ].filter(Boolean);
 }
 
-const allowedOrigins = getAllowedOrigins();
-
-const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    return callback(new Error('CORS policy blocks this origin'), false);
-  },
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-telegram-init-data', 'x-dev-user'],
-  credentials: true,
-  optionsSuccessStatus: 204,
-};
-
 app.use(helmet());
-app.use(cors(corsOptions));
-// Ensure preflight requests are answered even when no route-level handler exists.
-app.options('*', cors(corsOptions));
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
+app.options('*', cors({
+  origin: true,
+  credentials: true
+}));
 app.use(express.json({ limit: '1mb' }));
 
 const globalLimiter = rateLimit({ windowMs: 60 * 1000, max: isProduction ? 300 : 1000, standardHeaders: true, legacyHeaders: false });

@@ -310,7 +310,6 @@ async function startRoomGame(io, roomId) {
     result = await db.transaction(async (trx) => {
       const room = await trx('game_rooms').where({ id: roomId }).forUpdate().first();
       if (!room) throw new Error('Room not found');
-      if (Boolean(room.is_demo) !== isDemoMode()) throw new Error('Room mode mismatch');
       if (room.status !== 'WAITING') throw new Error('Room not available');
       if (room.registration_ends_at && new Date(room.registration_ends_at).getTime() > Date.now()) throw new Error('Registration is still open');
       const participants = await trx('room_participants').where({ room_id: roomId });
@@ -396,7 +395,6 @@ function setupSocket(server) {
         const participant = await db('room_participants').where({ room_id: roomId, user_id: user.id }).first();
         if (!participant) { socket.emit('error', { message: 'Not a participant' }); return; }
         const room = await db('game_rooms').where({ id: roomId }).first();
-        if (!room || Boolean(room.is_demo) !== isDemoMode()) { socket.emit('error', { message: 'Room mode mismatch' }); return; }
         currentRoom = roomId;
         socket.join(roomId);
         if (!rooms[roomId]) {
@@ -462,7 +460,6 @@ function setupSocket(server) {
         const participant = await db('room_participants').where({ room_id: roomId, user_id: user.id }).first();
         if (!participant) { socket.emit('pattern_selection_result', { ok: false, error: 'Not a participant' }); return; }
         const room = await db('game_rooms').where({ id: roomId }).first();
-        if (!room || Boolean(room.is_demo) !== isDemoMode()) { socket.emit('pattern_selection_result', { ok: false, error: 'Room mode mismatch' }); return; }
         if (room.status !== 'WAITING') { socket.emit('pattern_selection_result', { ok: false, error: 'Selections are locked' }); return; }
 
         const availablePatterns = getAllowedPatterns(room);
