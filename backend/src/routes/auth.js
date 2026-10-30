@@ -1,5 +1,6 @@
 const express = require('express');
 const crypto = require('crypto');
+const db = require('../db/knex');
 const router = express.Router();
 
 router.post('/login', async (req, res) => {
@@ -64,20 +65,6 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-let user = await db('users').where({ telegram_id: tgUser.id }).first();
-
-if (!user) {
-  const [newUser] = await db('users').insert({
-    telegram_id: tgUser.id,
-    username: tgUser.username || null,
-    first_name: tgUser.first_name || 'Player',
-    wallet_balance: 0,
-    demo_wallet_balance: 100,
-  }).returning('*');
-  user = newUser;
-  console.log(`[auth] Auto-registered new user: ${user.id}`);
-}
 
 module.exports = router;
 
