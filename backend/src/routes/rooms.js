@@ -277,28 +277,38 @@ function recoverRegistrations(io) {
 }
 
 // FIXED: Look up user by telegram_id to get the real DB user.id
-router.get('/:roomId/my-cards', async (req, res) => {
+router.get('/:roomId/my-cards', telegramAuthMiddleware, async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { userId } = req.query;
+    const { userId } = req.query; // This is the Telegram ID from the frontend
+
+    console.log(`[my-cards] Request for room: ${roomId}, telegram_id: ${userId}`);
+
     if (!roomId || !userId) {
       return res.status(400).json({ error: 'roomId and userId are required' });
     }
 
+    // 1. Look up the user by Telegram ID
     const user = await db('users').where({ telegram_id: userId }).first();
     if (!user) {
+      console.log(`[my-cards] User not found for telegram_id: ${userId}`);
       return res.status(404).json({ error: 'User not found' });
     }
+    console.log(`[my-cards] Found user DB ID: ${user.id}`);
 
+    // 2. Query using the actual database user.id
     const selections = await db('room_card_selections').where({ room_id: roomId, user_id: user.id });
+    console.log(`[my-cards] Found ${selections.length} selections in DB for user ${user.id}`);
+
     const cards = selections.map((selection) => ({
       id: selection.card_id,
       matrix: typeof selection.card === 'string' ? JSON.parse(selection.card) : selection.card,
     }));
 
+    console.log(`[my-cards] Found ${cards.length} cards for user ${user.id} (Telegram: ${userId}) in room ${roomId}`);
     return res.json({ cards });
   } catch (error) {
-    console.error(error);
+    console.error('Error fetching my-cards:', error);
     return res.status(500).json({ error: 'Failed to fetch cards' });
   }
 });
