@@ -37,8 +37,8 @@ router.post('/login', async (req, res) => {
     // Return success
     res.json({ success: true, user, token: 'mock-jwt-' + user.id });
   } catch (err) {
-    console.error('[auth] Login error:', err);
-    res.status(500).json({ error: 'Login failed' });
+    console.error('[auth] FULL LOGIN ERROR:', err);
+    res.status(500).json({ error: 'Login failed', details: err.message });
   }
 });
 
