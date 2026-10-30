@@ -120,10 +120,21 @@ const GameScreen = ({
     api.getMyCards(roomId, userId)
       .then(data => {
         console.log("Fetched cards from API:", data);
-        if (data && data.cards) setCardsData(data.cards);
+        if (data && data.cards && data.cards.length > 0) {
+          setCardsData(data.cards);
+        } else {
+          if (cards && cards.length > 0) {
+            setCardsData(cards);
+          } else {
+            const storedIds = JSON.parse(sessionStorage.getItem('selectedCardIds') || '[]');
+            if (storedIds.length > 0) {
+              setCardsData(storedIds.map(id => ({ id, matrix: [] })));
+            }
+          }
+        }
       })
       .catch(err => console.error("Failed to fetch cards:", err));
-  }, [roomId, currentUser, currentUserId]);
+  }, [roomId, currentUser, currentUserId, cards]);
 
   // Socket Listeners & Fake Game Trigger
   useEffect(() => {
