@@ -114,7 +114,7 @@ const GameScreen = ({
 
   // Fetch Cards on Mount
   useEffect(() => {
-    const userId = currentUser?.id || currentUserId;
+    const userId = localStorage.getItem('dbUserId') || currentUser?.id || currentUserId;
     if (!roomId || !userId) return;
     
     api.getMyCards(roomId, userId)

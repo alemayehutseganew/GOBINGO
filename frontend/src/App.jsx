@@ -29,6 +29,7 @@ export default function App() {
         }
         const u = await TelegramAuth.login();
         setUser(u);
+        localStorage.setItem('dbUserId', u.id);
         const wallet = await api.balance();
         if (!wallet || typeof wallet.demo !== 'boolean') throw new Error('Invalid wallet mode response');
         setIsDemo(wallet.demo);

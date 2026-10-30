@@ -89,15 +89,20 @@ router.get('/:roomId/my-cards', async (req, res) => {
       return res.status(400).json({ error: 'roomId and userId are required' });
     }
 
-    const user = await db('users').where({ telegram_id: userId }).first();
+    // Try to find user by DB ID or Telegram ID
+    let user = await db('users').where({ id: userId }).first();
     if (!user) {
-      console.log(`[my-cards] User not found for telegram_id: ${userId}`);
-      return res.json({ cards: [] }); 
+      user = await db('users').where({ telegram_id: userId }).first();
+    }
+
+    if (!user) {
+      console.log('[my-cards] User not found for ID/Telegram: ' + userId);
+      return res.json({ cards: [] });
     }
 
     const selections = await db('room_card_selections').where({ room_id: roomId, user_id: user.id });
-    
-    console.log(`[my-cards] Found ${selections.length} cards for DB user ${user.id} in room ${roomId}`);
+
+    console.log('[my-cards] Found ' + selections.length + ' cards for DB user ' + user.id + ' in room ' + roomId);
 
     const cards = selections.map((selection) => ({
       id: selection.card_id,
@@ -109,9 +114,7 @@ router.get('/:roomId/my-cards', async (req, res) => {
     console.error('[my-cards] Error:', error);
     return res.status(500).json({ error: 'Failed to fetch cards' });
   }
-});
-
-router.get('/:id/cards', telegramAuthMiddleware, async (req, res) => {
+});router.get('/:id/cards', telegramAuthMiddleware, async (req, res) => {
   try {
     const room = await db('game_rooms').where({ id: req.params.id }).first();
     if (!room) return res.status(404).json({ error: 'Room not found' });
