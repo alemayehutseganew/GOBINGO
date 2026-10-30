@@ -337,6 +337,11 @@ function validateBingo(card, calledNumbersSet) {
   return { isValid: false, matchedPattern: null };
 }
 
+function normalizeAllowedPatterns(patterns) {
+  if (!Array.isArray(patterns)) return [];
+  return patterns.filter(Boolean).map(p => String(p).toUpperCase());
+}
+
 
 module.exports = {
   ROW_PATTERNS,
@@ -357,6 +362,7 @@ module.exports = {
   evaluatePatterns,
   closingNumberInPattern,
   ETHIO_BINGO_PATTERNS,
+  normalizeAllowedPatterns,
   validateClaim,
   validateBingo,
   normalizeAllowedPatterns,
