@@ -359,4 +359,5 @@ module.exports = {
   ETHIO_BINGO_PATTERNS,
   validateClaim,
   validateBingo,
+  normalizeAllowedPatterns,
 };
