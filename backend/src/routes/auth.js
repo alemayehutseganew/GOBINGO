@@ -2,7 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const router = express.Router();
 
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { initData } = req.body;
   const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -37,10 +37,26 @@ router.post('/login', (req, res) => {
 
     const user = JSON.parse(urlParams.get('user'));
 
+    let dbUser = await db('users').where({ telegram_id: user.id }).first();
+
+    if (!dbUser) {
+      const [newUser] = await db('users').insert({
+        telegram_id: user.id,
+        username: user.username || null,
+        first_name: user.first_name || 'Player',
+        wallet_balance: 0,
+        demo_wallet_balance: 100,
+      }).returning('*');
+      dbUser = newUser;
+      console.log('[auth] Auto-registered new user: ' + dbUser.id + ' (Telegram: ' + dbUser.telegram_id + ')');
+    } else {
+      console.log('[auth] Found existing user: ' + dbUser.id + ' (Telegram: ' + dbUser.telegram_id + ')');
+    }
+
     res.json({
       success: true,
-      user: user,
-      token: 'mock-jwt-token-' + user.id
+      user: dbUser,
+      token: 'mock-jwt-token-' + dbUser.id
     });
 
   } catch (error) {
