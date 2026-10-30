@@ -1,70 +1,50 @@
 const express = require('express');
-const crypto = require('crypto');
-const db = require('../db/knex');
 const router = express.Router();
+const db = require('../db/knex');
+const { validateTelegramInitData } = require('../middleware/telegramAuth');
 
 router.post('/login', async (req, res) => {
-  const { initData } = req.body;
-  const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-
-  if (!initData) {
-    return res.status(400).json({ error: 'Missing initData' });
-  }
-
   try {
-    const urlParams = new URLSearchParams(initData);
-    const hash = urlParams.get('hash');
-    urlParams.delete('hash');
+    const { initData } = req.body;
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
-    const dataCheckString = Array.from(urlParams.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, value]) => `${key}=${value}`)
-      .join('\n');
-
-    const secretKey = crypto
-      .createHmac('sha256', 'WebAppData')
-      .update(BOT_TOKEN)
-      .digest();
-
-    const expectedHash = crypto
-      .createHmac('sha256', secretKey)
-      .update(dataCheckString)
-      .digest('hex');
-
-    if (hash !== expectedHash) {
-      console.error('Hash mismatch. Security check failed.');
-      return res.status(401).json({ error: 'Invalid hash' });
+    // Validate Telegram initData
+    const validation = validateTelegramInitData(initData, botToken);
+    if (!validation || !validation.ok) {
+      return res.status(401).json({ error: 'Invalid Telegram authentication' });
     }
 
-    const user = JSON.parse(urlParams.get('user'));
+    const tgUser = validation.user;
 
-    let dbUser = await db('users').where({ telegram_id: user.id }).first();
+    // Look up the user in the database
+    let user = await db('users').where({ telegram_id: tgUser.id }).first();
 
-    if (!dbUser) {
+    // If user doesn't exist, auto-register them
+    if (!user) {
       const [newUser] = await db('users').insert({
-        telegram_id: user.id,
-        username: user.username || null,
-        first_name: user.first_name || 'Player',
+        telegram_id: tgUser.id,
+        username: tgUser.username || null,
+        first_name: tgUser.first_name || 'Player',
         wallet_balance: 0,
-        demo_wallet_balance: 100,
+        demo_wallet_balance: 100, // Give them 100 demo money to start
       }).returning('*');
-      dbUser = newUser;
-      console.log('[auth] Auto-registered new user: ' + dbUser.id + ' (Telegram: ' + dbUser.telegram_id + ')');
+      user = newUser;
+      console.log(`[auth] Auto-registered new user: ${user.id} (Telegram: ${user.telegram_id})`);
     } else {
-      console.log('[auth] Found existing user: ' + dbUser.id + ' (Telegram: ' + dbUser.telegram_id + ')');
+      console.log(`[auth] Found existing user: ${user.id} (Telegram: ${user.telegram_id})`);
     }
 
-    res.json({
-      success: true,
-      user: dbUser,
-      token: 'mock-jwt-token-' + dbUser.id
-    });
-
-  } catch (error) {
-    console.error('Auth Error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    // Return success
+    res.json({ success: true, user, token: 'mock-jwt-' + user.id });
+  } catch (err) {
+    console.error('[auth] Login error:', err);
+    res.status(500).json({ error: 'Login failed' });
   }
 });
 
-module.exports = router;
+router.get('/me', async (req, res) => {
+  // Simple mock endpoint to keep frontend happy
+  res.json({ success: true });
+});
 
+module.exports = router;
