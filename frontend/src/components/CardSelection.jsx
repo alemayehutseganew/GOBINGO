@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import api from '../services/api.js';
 
 const generatePreviewMatrix = (cardId) => {
   const ranges = [[1, 15], [16, 30], [31, 45], [46, 60], [61, 75]];
@@ -70,17 +71,23 @@ export default function CardSelection({ socket, currentUser, onConfirm, walletBa
 const handleSelectCard = handleSelect;
 
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (selectedCards.length === 0) return;
     console.log('Navigating with cards:', selectedCards);
+    const dbUserId = localStorage.getItem('dbUserId');
+    const userId = dbUserId || currentUser?.id;
     if (socket) {
-      socket.emit('select_cards', { roomId, userId: currentUser?.id, cardIds: selectedCards });
+      socket.emit('select_cards', { roomId, userId, cardIds: selectedCards });
     }
     try {
+      // Save each selected card to backend DB so matrix is persisted
+      await Promise.all(selectedCards.map((cardId) => api.selectCard(roomId, cardId)));
       sessionStorage.setItem('selectedCardIds', JSON.stringify(selectedCards));
       sessionStorage.setItem('stake', String(stake));
       sessionStorage.setItem('roomId', roomId);
-    } catch (e) {}
+    } catch (e) {
+      console.error('Failed to save cards:', e);
+    }
     if (onConfirm) onConfirm(selectedCards);
   };
 
