@@ -46,6 +46,11 @@ const corsOptions = {
       'https://gobingo-rho.vercel.app'
     ];
 
+    // Allow any Vercel preview/production deployment
+    if (origin && origin.endsWith('.vercel.app')) {
+      return callback(null, true);
+    }
+
     // Fallback to allow env variable if set
     if (process.env.CORS_ORIGINS) {
       allowedOrigins.push(...process.env.CORS_ORIGINS.split(','));
