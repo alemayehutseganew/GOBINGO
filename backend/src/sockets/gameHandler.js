@@ -250,9 +250,6 @@ function startDrawLoop(io, game, roomId) {
           game.interval = null;
         }
         io.to(roomId).emit('game_completed', { roomId });
-        // A claim during the grace window can win only if one of its eligible
-        // patterns includes the last called number (the 75th), because
-        // claim_bingo filters completed patterns with closingNumberInPattern.
         scheduleRefund(io, game, roomId);
         return;
       }
@@ -314,7 +311,6 @@ async function startRoomGame(io, roomId) {
       if (room.registration_ends_at && new Date(room.registration_ends_at).getTime() > Date.now()) throw new Error('Registration is still open');
       const participants = await trx('room_participants').where({ room_id: roomId });
       if (participants.length < MIN_PLAYERS) throw new Error('At least 2 players are required');
-      // Gate: every participant must have at least one valid selected pattern
       const availablePatterns = getAllowedPatterns(room);
       for (const p of participants) {
         const sel = getSelectedPatterns(p);
@@ -412,11 +408,11 @@ function setupSocket(server) {
           rooms[roomId].stake = Number(stake);
         }
 
-        const playerId = userId || user.id;
+        // Always use the internal database user.id for in-memory rooms to match the DB
+        const playerId = user.id; 
         rooms[roomId].players[playerId] = rooms[roomId].players[playerId] || { socketId: socket.id, cards: [] };
         rooms[roomId].players[playerId].socketId = socket.id;
 
-        // Load selected cards from DB so room.players[userId].cards has full matrix
         const selections = await db('room_card_selections').where({ room_id: roomId, user_id: playerId });
         rooms[roomId].players[playerId].cards = selections.map((sel) => ({
           id: sel.card_id,
@@ -541,8 +537,10 @@ function setupSocket(server) {
       if (!room) return;
       if (room.status === 'ENDED') return;
 
-      const player = room.players && room.players[userId];
+      // Find player by Telegram ID or DB ID depending on how the frontend sent it
+      const player = room.players && (room.players[userId] || Object.values(room.players).find(p => p.userId === userId));
       const card = player && Array.isArray(player.cards) ? player.cards.find((c) => c.id === cardId) : null;
+      
       if (!card) {
         socket.emit('claim_failed', { roomId, userId, reason: 'Card not found' });
         return;
@@ -590,10 +588,23 @@ function setupSocket(server) {
       io.to(roomId).emit('player_claimed', { roomId, userId, cardId });
     });
 
-    socket.on('get_my_cards', ({ roomId, userId }) => {
-      const room = rooms[roomId];
-      const player = room && room.players ? room.players[userId] : null;
-      socket.emit('my_cards', { roomId, userId, cards: player && Array.isArray(player.cards) ? player.cards : [] });
+    // FIXED: Always fetch from DB to guarantee data is not empty
+    socket.on('get_my_cards', async ({ roomId, userId }) => {
+      try {
+        const user = await getUserByTelegramId(socket.tgUser.id);
+        if (!user) return;
+        
+        const selections = await db('room_card_selections').where({ room_id: roomId, user_id: user.id });
+        const cards = selections.map((sel) => ({
+          id: sel.card_id,
+          matrix: typeof sel.card === 'string' ? JSON.parse(sel.card) : sel.card,
+        }));
+        
+        socket.emit('my_cards', { roomId, userId, cards });
+      } catch (err) {
+        console.error(err);
+        socket.emit('my_cards', { roomId, userId, cards: [] });
+      }
     });
 
 
@@ -601,7 +612,6 @@ function setupSocket(server) {
     socket.on('disconnect', () => {
       if (currentRoom) socket.leave(currentRoom);
 
-      // Remove disconnected player from in-memory rooms.
       for (const roomId of Object.keys(rooms)) {
         const room = rooms[roomId];
         if (!room || !room.players) continue;

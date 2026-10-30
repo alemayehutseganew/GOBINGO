@@ -92,8 +92,6 @@ router.get('/:id', telegramAuthMiddleware, async (req, res) => {
   }
 });
 
-
-// Card selection board.
 router.get('/:id/cards', telegramAuthMiddleware, async (req, res) => {
   try {
     const room = await db('game_rooms').where({ id: req.params.id }).first();
@@ -278,7 +276,7 @@ function recoverRegistrations(io) {
     });
 }
 
-// GET /api/rooms/:roomId/my-cards
+// FIXED: Look up user by telegram_id to get the real DB user.id
 router.get('/:roomId/my-cards', async (req, res) => {
   try {
     const { roomId } = req.params;
@@ -287,10 +285,15 @@ router.get('/:roomId/my-cards', async (req, res) => {
       return res.status(400).json({ error: 'roomId and userId are required' });
     }
 
-    const selections = await db('room_card_selections').where({ room_id: roomId, user_id: userId });
+    const user = await db('users').where({ telegram_id: userId }).first();
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const selections = await db('room_card_selections').where({ room_id: roomId, user_id: user.id });
     const cards = selections.map((selection) => ({
       id: selection.card_id,
-      matrix: selection.card,
+      matrix: typeof selection.card === 'string' ? JSON.parse(selection.card) : selection.card,
     }));
 
     return res.json({ cards });
@@ -299,6 +302,5 @@ router.get('/:roomId/my-cards', async (req, res) => {
     return res.status(500).json({ error: 'Failed to fetch cards' });
   }
 });
-
 
 module.exports = router;
