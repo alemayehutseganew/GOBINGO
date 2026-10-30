@@ -134,7 +134,7 @@ const GameScreen = ({
         }
       })
       .catch(err => console.error("Failed to fetch cards:", err));
-  }, [roomId, currentUser, currentUserId, cards]);
+  }, []);
 
   // Socket Listeners & Fake Game Trigger
   useEffect(() => {
@@ -239,7 +239,7 @@ const GameScreen = ({
     setValidating(true);
     
     if (socket) {
-      socket.emit('claim_bingo', { roomId, cardId, markedNumbers });
+      socket.emit('claim_bingo', { roomId, userId: localStorage.getItem('dbUserId') || currentUser?.id, cardId: cardsData?.[0]?.id, markedNumbers });
     } else if (onBingo) {
       onBingo({ roomId, cardId, markedNumbers });
     }

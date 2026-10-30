@@ -33,7 +33,7 @@ export default function CardSelection({ socket, currentUser, onConfirm, walletBa
 
   useEffect(() => {
     if (!socket) return;
-    socket.emit('join_room', { roomId, userId: currentUser?.id, stake });
+    socket.emit('join_room', { roomId, userId: localStorage.getItem('dbUserId') || currentUser?.id, stake });
 
     const handleRoomState = (state) => {
       if (state?.roomId === roomId && Array.isArray(state?.takenCards)) {
