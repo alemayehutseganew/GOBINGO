@@ -416,6 +416,13 @@ function setupSocket(server) {
         rooms[roomId].players[playerId] = rooms[roomId].players[playerId] || { socketId: socket.id, cards: [] };
         rooms[roomId].players[playerId].socketId = socket.id;
 
+        // Load selected cards from DB so room.players[userId].cards has full matrix
+        const selections = await db('room_card_selections').where({ room_id: roomId, user_id: playerId });
+        rooms[roomId].players[playerId].cards = selections.map((sel) => ({
+          id: sel.card_id,
+          matrix: typeof sel.card === 'string' ? JSON.parse(sel.card) : sel.card,
+        }));
+
         const playerCount = Object.keys(rooms[roomId].players).length;
         console.log(`Player ${playerId} joined ${roomId}. Total players: ${playerCount}`);
         io.to(roomId).emit('room_update', {
