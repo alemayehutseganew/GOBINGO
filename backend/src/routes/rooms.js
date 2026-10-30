@@ -287,10 +287,10 @@ router.get('/:roomId/my-cards', async (req, res) => {
 
     // 1. Find the DB user by Telegram ID
     const user = await db('users').where({ telegram_id: userId }).first();
-    if (!user) {
-      console.log(`[my-cards] User not found for telegram_id: ${userId}`);
-      return res.status(404).json({ error: 'User not found' });
-    }
+if (!user) {
+  console.log(`[my-cards] User not found for telegram_id: ${userId}`);
+  return res.json({ cards: [] }); // Do not crash the app
+}
 
     // 2. Fetch selections using the DB user.id
     const selections = await db('room_card_selections').where({ room_id: roomId, user_id: user.id });

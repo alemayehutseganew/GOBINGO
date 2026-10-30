@@ -338,10 +338,13 @@ function validateBingo(card, calledNumbersSet) {
 }
 
 function normalizeAllowedPatterns(patterns) {
-  if (!Array.isArray(patterns)) return [];
-  return patterns.filter(Boolean).map(p => String(p).toUpperCase());
+  if (!patterns) return [];
+  if (Array.isArray(patterns)) return patterns;
+  if (typeof patterns === 'string') {
+    try { return JSON.parse(patterns); } catch (e) { return []; }
+  }
+  return [];
 }
-
 
 module.exports = {
   ROW_PATTERNS,
