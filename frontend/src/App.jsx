@@ -3,7 +3,6 @@ import TelegramAuth from './services/telegram.js';
 import SocketService from './services/socket.js';
 import api from './services/api.js';
 import Lobby from './pages/Lobby.jsx';
-import Game from './pages/Game.jsx';
 import Wallet from './pages/Wallet.jsx';
 import MockTelebirrCheckout from './pages/MockTelebirrCheckout.jsx';
 import { t } from './i18n/am.js';
